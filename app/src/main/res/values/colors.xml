@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Only used for the pre-Compose window background (see themes.xml). The design system's
+         real source of truth is ui/theme/Color.kt — never add color logic here. -->
+    <color name="bg_light">#FAFAF8</color>
+    <color name="bg_dark">#0E0F11</color>
+</resources>

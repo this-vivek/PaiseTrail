@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Capture layer -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+
+    <!-- Location enrichment -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- Tag popup -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Reverse geocoding, map tiles -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Hardening (Phase 6) -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <application
+        android:name=".PaisaTrailApp"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PaiseTrail">
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
+        <!-- Default WorkManager auto-init replaced by on-demand init in PaisaTrailApp
+             (Configuration.Provider) so workers get Hilt injection via HiltWorkerFactory. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.PaiseTrail">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Must be declared for the system to offer it under Settings > Notification access
+             (spec 3.1) — without this entry the listener is never invoked, regardless of any
+             permission the user grants. -->
+        <service
+            android:name=".capture.notification.UpiNotificationListenerService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- High priority per spec 3.2 so this receiver sees the SMS before other apps can
+             abort the broadcast. BROADCAST_SMS is required by the platform for any receiver
+             listening to SMS_RECEIVED_ACTION. -->
+        <receiver
+            android:name=".capture.sms.SmsBroadcastReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Short-lived; started and stopped per transaction (spec 4.1). foregroundServiceType
+             requires ACCESS_FINE_LOCATION already granted at the moment startForeground is
+             called, enforced by the caller (TransactionEnrichmentCoordinator), not this service. -->
+        <service
+            android:name=".enrich.LocationStamper"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <!-- Handles a tap on one of the tag popup's category buttons without opening the app
+             (spec 5). Not exported — only PaisaTrail's own notification actions target it. -->
+        <receiver
+            android:name=".interaction.TagActionReceiver"
+            android:exported="false" />
+
+        <!-- Handles "Start trip" on the auto-detect prompt without opening the app (spec 7.4). -->
+        <receiver
+            android:name=".trips.TripPromptActionReceiver"
+            android:exported="false" />
+
+    </application>
+
+</manifest>
