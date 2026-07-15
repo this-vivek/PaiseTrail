@@ -34,6 +34,10 @@ class DataExporter @Inject constructor(
                 placeName = txn.placeName,
                 locality = txn.locality,
                 note = txn.note,
+                lat = txn.lat,
+                lng = txn.lng,
+                accuracyM = txn.accuracyM,
+                locationQuality = txn.locationQuality?.name,
             )
         }
 

@@ -8,7 +8,10 @@ enum class TxnDirection { DEBIT, CREDIT }
 enum class TxnStatus { CONFIRMED, REFUNDED, SUSPECT_DUP, SELF_TRANSFER }
 enum class TagSource { USER, AUTO_HIGH, AUTO_LOW, AUTO_AI, NONE }
 enum class PaymentContext { IN_PERSON, ONLINE, P2P }
-enum class LocationQuality { GOOD, STALE, MISSING }
+/** [APPROXIMATE] is a geocoded-from-text estimate (place/locality name -> coordinates), not a
+ * device GPS fix — city/neighborhood accuracy at best, used when a real fix never existed (an
+ * imported backup, or historical data) but a place name did. */
+enum class LocationQuality { GOOD, STALE, MISSING, APPROXIMATE }
 
 @Entity(
     tableName = "transactions",

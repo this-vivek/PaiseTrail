@@ -2,6 +2,7 @@ package com.paisetrail.app.export
 
 import com.paisetrail.app.data.db.CategoryDao
 import com.paisetrail.app.data.db.CategoryEntity
+import com.paisetrail.app.data.db.LocationQuality
 import com.paisetrail.app.data.db.MerchantDao
 import com.paisetrail.app.data.db.MerchantEntity
 import com.paisetrail.app.data.db.TagSource
@@ -9,6 +10,7 @@ import com.paisetrail.app.data.db.TransactionDao
 import com.paisetrail.app.data.db.TransactionEntity
 import com.paisetrail.app.data.db.TxnDirection
 import com.paisetrail.app.data.db.TxnStatus
+import com.paisetrail.app.enrich.ApproxLocationTrigger
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
@@ -21,12 +23,17 @@ data class ImportResult(val importedCount: Int, val skippedCount: Int)
  * seeded/learned them yet. Dedup is by [ExportedTransaction.upiRef] against what's already in the
  * DB — a transaction with no ref (never happens for real UPI payments, but not disallowed by the
  * schema) has no reliable key to dedup on and is always inserted.
+ *
+ * A backup exported before [ExportedTransaction] carried lat/lng has only [ExportedTransaction.placeName]
+ * / [ExportedTransaction.locality] to go on; those rows get an approximate, geocoded-from-text fix
+ * via [ApproxLocationTrigger] instead of the real GPS coordinates that no longer exist anywhere.
  */
 @Singleton
 class DataImporter @Inject constructor(
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao,
     private val merchantDao: MerchantDao,
+    private val approxLocationTrigger: ApproxLocationTrigger,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -44,7 +51,7 @@ class DataImporter @Inject constructor(
             val categoryId = exported.categoryName?.let { resolveCategoryId(it) }
             val merchantId = exported.merchantName?.let { resolveMerchantId(it) }
 
-            transactionDao.insert(
+            val insertedId = transactionDao.insert(
                 TransactionEntity(
                     amountPaise = exported.amountPaise,
                     direction = TxnDirection.valueOf(exported.direction),
@@ -59,9 +66,19 @@ class DataImporter @Inject constructor(
                     placeName = exported.placeName,
                     locality = exported.locality,
                     note = exported.note,
+                    lat = exported.lat,
+                    lng = exported.lng,
+                    accuracyM = exported.accuracyM,
+                    locationQuality = exported.locationQuality?.let { LocationQuality.valueOf(it) },
                 ),
             )
             imported++
+
+            val hasCoords = exported.lat != null && exported.lng != null
+            val hasPlaceText = !exported.placeName.isNullOrBlank() || !exported.locality.isNullOrBlank()
+            if (!hasCoords && hasPlaceText) {
+                approxLocationTrigger.onMissingCoordinates(insertedId)
+            }
         }
 
         return ImportResult(imported, skipped)

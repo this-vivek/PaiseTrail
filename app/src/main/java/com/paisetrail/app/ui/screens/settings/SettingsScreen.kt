@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Layers
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Sms
 import androidx.compose.material.icons.outlined.Storefront
@@ -91,6 +92,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val backfillState by viewModel.backfillState.collectAsState()
+    val approxLocationBackfillState by viewModel.approxLocationBackfillState.collectAsState()
 
     var smsGranted by remember { mutableStateOf(hasSmsPermissions(context)) }
     var listenerEnabled by remember { mutableStateOf(isNotificationListenerEnabled(context)) }
@@ -340,6 +342,18 @@ fun SettingsScreen(
                 subtitle = importStatus ?: "Restore transactions from a PaisaTrail JSON export",
                 isProblem = importStatus?.startsWith("Import failed") == true,
                 onClick = { importLauncher.launch(arrayOf("application/json")) },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.LocationOn,
+                title = "Estimate missing locations",
+                subtitle = when (approxLocationBackfillState) {
+                    WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED -> "Running — estimating locations from place names…"
+                    WorkInfo.State.SUCCEEDED -> "Done — tap to re-scan for any newly imported rows"
+                    WorkInfo.State.FAILED -> "Failed — tap to retry"
+                    else -> "Fill in an approximate map location for transactions that have a place name but no GPS fix (e.g. an imported backup)"
+                },
+                isProblem = approxLocationBackfillState == WorkInfo.State.FAILED,
+                onClick = { viewModel.startApproxLocationBackfill() },
             )
             SettingsRow(
                 icon = Icons.Outlined.AutoAwesome,

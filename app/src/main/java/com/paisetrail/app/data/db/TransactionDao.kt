@@ -157,6 +157,12 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE direction = 'DEBIT' AND status = 'CONFIRMED' AND lat IS NOT NULL AND lng IS NOT NULL")
     fun observeMapped(): Flow<List<TransactionEntity>>
 
+    /** Rows with a place name/locality but no coordinates — the state left behind by importing a
+     * backup exported before [com.paisetrail.app.export.ExportedTransaction] carried lat/lng.
+     * Feeds [com.paisetrail.app.backfill.ApproxLocationBackfillWorker]. */
+    @Query("SELECT id FROM transactions WHERE lat IS NULL AND (placeName IS NOT NULL OR locality IS NOT NULL)")
+    suspend fun getIdsMissingCoordinatesWithPlace(): List<Long>
+
     /** Trip summary (spec 7.4). */
     @Query("SELECT * FROM transactions WHERE tripId = :tripId ORDER BY occurredAt ASC")
     fun observeForTrip(tripId: Long): Flow<List<TransactionEntity>>

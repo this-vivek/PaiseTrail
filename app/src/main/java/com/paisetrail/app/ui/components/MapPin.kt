@@ -102,11 +102,11 @@ fun MapClusterBubble(count: Int, categorySlices: List<Pair<Color, Float>> = empt
 
 private fun pinDiameter(amountPaise: Long): Dp {
     val rupees = (amountPaise / 100).coerceAtLeast(1L)
-    val scaled = 16 + (kotlin.math.sqrt(rupees.toDouble()) / 4).toInt()
-    return scaled.coerceIn(16, 36).dp
+    val scaled = 28 + (kotlin.math.sqrt(rupees.toDouble()) / 3).toInt()
+    return scaled.coerceIn(28, 48).dp
 }
 
 private fun clusterDiameter(count: Int): Dp {
-    val scaled = 28 + (kotlin.math.sqrt(count.toDouble()) * 4).toInt()
-    return scaled.coerceIn(28, 52).dp
+    val scaled = 34 + (kotlin.math.sqrt(count.toDouble()) * 4).toInt()
+    return scaled.coerceIn(34, 58).dp
 }

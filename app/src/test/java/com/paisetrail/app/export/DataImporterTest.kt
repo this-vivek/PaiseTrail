@@ -2,12 +2,14 @@ package com.paisetrail.app.export
 
 import com.paisetrail.app.data.db.CategoryDao
 import com.paisetrail.app.data.db.CategoryEntity
+import com.paisetrail.app.data.db.LocationQuality
 import com.paisetrail.app.data.db.MerchantDao
 import com.paisetrail.app.data.db.MerchantEntity
 import com.paisetrail.app.data.db.MerchantVpaEntity
 import com.paisetrail.app.data.db.TagSource
 import com.paisetrail.app.data.db.TransactionEntity
 import com.paisetrail.app.data.db.TxnDirection
+import com.paisetrail.app.enrich.ApproxLocationTrigger
 import com.paisetrail.app.testutil.FakeTransactionDao
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -93,10 +95,18 @@ private class ImportFakeMerchantDao : MerchantDao {
         emptyList<com.paisetrail.app.data.db.LatLngRow>()
 }
 
+private class FakeApproxLocationTrigger : ApproxLocationTrigger {
+    val triggeredTxnIds = mutableListOf<Long>()
+    override fun onMissingCoordinates(txnId: Long) {
+        triggeredTxnIds.add(txnId)
+    }
+}
+
 class DataImporterTest {
     private lateinit var transactionDao: FakeTransactionDao
     private lateinit var categoryDao: ImportFakeCategoryDao
     private lateinit var merchantDao: ImportFakeMerchantDao
+    private lateinit var approxLocationTrigger: FakeApproxLocationTrigger
     private lateinit var importer: DataImporter
 
     @Before
@@ -104,7 +114,8 @@ class DataImporterTest {
         transactionDao = FakeTransactionDao()
         categoryDao = ImportFakeCategoryDao()
         merchantDao = ImportFakeMerchantDao()
-        importer = DataImporter(transactionDao, categoryDao, merchantDao)
+        approxLocationTrigger = FakeApproxLocationTrigger()
+        importer = DataImporter(transactionDao, categoryDao, merchantDao, approxLocationTrigger)
     }
 
     private fun bundleJson(vararg transactions: ExportedTransaction): String {
@@ -234,6 +245,89 @@ class DataImporterTest {
         assertNull(txn.categoryId)
         assertNull(txn.merchantId)
         assertEquals(TagSource.NONE, txn.tagSource)
+    }
+
+    @Test
+    fun `restores raw coordinates directly when the export carried them, without triggering approx geocoding`() = runTest {
+        importer.importFromJson(
+            bundleJson(
+                ExportedTransaction(
+                    amountPaise = 45000L,
+                    direction = "DEBIT",
+                    status = "CONFIRMED",
+                    payeeName = null,
+                    vpa = null,
+                    upiRef = null,
+                    occurredAt = 1_000L,
+                    categoryName = null,
+                    merchantName = null,
+                    placeName = "Connaught Place",
+                    locality = "New Delhi",
+                    note = null,
+                    lat = 28.7041,
+                    lng = 77.1025,
+                    accuracyM = 12.5,
+                    locationQuality = "GOOD",
+                ),
+            ),
+        )
+
+        val txn = transactionDao.transactions.value.single()
+        assertEquals(28.7041, txn.lat)
+        assertEquals(77.1025, txn.lng)
+        assertEquals(12.5, txn.accuracyM)
+        assertEquals(LocationQuality.GOOD, txn.locationQuality)
+        assertEquals(emptyList<Long>(), approxLocationTrigger.triggeredTxnIds)
+    }
+
+    @Test
+    fun `triggers approx geocoding when only place text survived, no coordinates`() = runTest {
+        importer.importFromJson(
+            bundleJson(
+                ExportedTransaction(
+                    amountPaise = 45000L,
+                    direction = "DEBIT",
+                    status = "CONFIRMED",
+                    payeeName = null,
+                    vpa = null,
+                    upiRef = null,
+                    occurredAt = 1_000L,
+                    categoryName = null,
+                    merchantName = null,
+                    placeName = "Connaught Place",
+                    locality = "New Delhi",
+                    note = null,
+                ),
+            ),
+        )
+
+        val txn = transactionDao.transactions.value.single()
+        assertNull(txn.lat)
+        assertEquals(listOf(txn.id), approxLocationTrigger.triggeredTxnIds)
+    }
+
+    @Test
+    fun `does not trigger approx geocoding when there is no place text either`() = runTest {
+        importer.importFromJson(
+            bundleJson(
+                ExportedTransaction(
+                    amountPaise = 10000L,
+                    direction = "DEBIT",
+                    status = "CONFIRMED",
+                    payeeName = null,
+                    vpa = null,
+                    upiRef = null,
+                    occurredAt = 1_000L,
+                    categoryName = null,
+                    merchantName = null,
+                    placeName = null,
+                    locality = null,
+                    note = null,
+                ),
+            ),
+        )
+
+        assertEquals(emptyList<Long>(), approxLocationTrigger.triggeredTxnIds)
     }
 
     @Test

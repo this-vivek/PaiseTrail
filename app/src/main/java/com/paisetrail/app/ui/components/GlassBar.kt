@@ -4,6 +4,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import com.paisetrail.app.ui.theme.PaisaTheme
@@ -29,6 +30,7 @@ fun GlassBar(
 
     Box(
         modifier = modifier
+            .then(if (shape != null) Modifier.clip(shape) else Modifier)
             .then(if (shape != null) Modifier.border(1.dp, hairline, shape) else Modifier.border(1.dp, hairline))
             .hazeEffect(state = hazeState, style = style),
     ) {

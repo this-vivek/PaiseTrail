@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.paisetrail.app.backfill.ApproxLocationBackfillWorker
 import com.paisetrail.app.backfill.SmsBackfillWorker
 import com.paisetrail.app.data.db.TransactionDao
 import com.paisetrail.app.enrich.AutoTagResult
@@ -41,6 +42,15 @@ class SettingsViewModel @Inject constructor(
 
     fun startBackfill() {
         SmsBackfillWorker.enqueue(workManager)
+    }
+
+    val approxLocationBackfillState: StateFlow<WorkInfo.State?> = workManager
+        .getWorkInfosForUniqueWorkFlow(ApproxLocationBackfillWorker.workName())
+        .map { infos -> infos.firstOrNull()?.state }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun startApproxLocationBackfill() {
+        ApproxLocationBackfillWorker.enqueue(workManager)
     }
 
     suspend fun buildExportJson(): String = dataExporter.buildExportJson()

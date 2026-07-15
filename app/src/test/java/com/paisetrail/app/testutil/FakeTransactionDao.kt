@@ -154,6 +154,9 @@ class FakeTransactionDao : TransactionDao {
             }
         }
 
+    override suspend fun getIdsMissingCoordinatesWithPlace(): List<Long> =
+        transactions.value.filter { it.lat == null && (it.placeName != null || it.locality != null) }.map { it.id }
+
     override fun observeForTrip(tripId: Long) =
         transactions.map { list -> list.filter { it.tripId == tripId }.sortedBy { it.occurredAt } }
 

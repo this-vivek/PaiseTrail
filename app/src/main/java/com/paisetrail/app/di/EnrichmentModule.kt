@@ -1,7 +1,9 @@
 package com.paisetrail.app.di
 
+import com.paisetrail.app.enrich.ApproxLocationTrigger
 import com.paisetrail.app.enrich.TransactionEnrichmentCoordinator
 import com.paisetrail.app.enrich.TransactionEnrichmentTrigger
+import com.paisetrail.app.enrich.WorkManagerApproxLocationTrigger
 import com.paisetrail.app.interaction.TagPromptNotifier
 import com.paisetrail.app.interaction.TagPromptNotifierImpl
 import dagger.Binds
@@ -19,4 +21,7 @@ abstract class EnrichmentModule {
 
     @Binds
     abstract fun bindTagPromptNotifier(impl: TagPromptNotifierImpl): TagPromptNotifier
+
+    @Binds
+    abstract fun bindApproxLocationTrigger(impl: WorkManagerApproxLocationTrigger): ApproxLocationTrigger
 }
