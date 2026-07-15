@@ -134,6 +134,38 @@ class BankSmsPatternRegistryTest {
     }
 
     @Test
+    fun `matches real IndusInd UPI-collect alert`() = runTest {
+        // Real bug repro (2026-07-15): this exact body previously fell through every pattern and
+        // never created a transaction at all, so the tag popup never fired.
+        val match = registry.match(
+            sender = "AX-INDUSB-S",
+            body = "A/C *XX9903 debited by Rs 1.00 towards shivanibaunthiyal301@okhdfcbank. " +
+                "RRN:656224868668. Avl Bal:4421.82. Not you? Call 18602677777 - IndusInd bank",
+        )
+        assertTrue(match.senderRecognized)
+        val result = requireNotNull(match.parsed)
+        assertEquals(100L, result.amountPaise)
+        assertEquals("9903", result.acctLast4)
+        assertEquals("shivanibaunthiyal301@okhdfcbank", result.vpa)
+        assertEquals("656224868668", result.refId)
+    }
+
+    @Test
+    fun `matches real Union Bank of India mobile-banking debit alert`() = runTest {
+        // Real bug repro (2026-07-15): same as the IndusInd case above.
+        val match = registry.match(
+            sender = "JD-UNIONB-T",
+            body = "Union Bank of India A/c *6623 Debited Rs:1.00 on 15-07-2026 01:04:15 by Mob Bk " +
+                "ref no 656215869888, Fvg: SHIVANI Avl Bal Rs:14511.55. Not you?Call 180023",
+        )
+        assertTrue(match.senderRecognized)
+        val result = requireNotNull(match.parsed)
+        assertEquals(100L, result.amountPaise)
+        assertEquals("6623", result.acctLast4)
+        assertEquals("656215869888", result.refId)
+    }
+
+    @Test
     fun `disabled pattern is not recognized`() = runTest {
         val disabledOnly = BankSmsPatternRegistry(
             FakeBankSmsPatternDao(

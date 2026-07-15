@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class TransactionDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    transactionDao: TransactionDao,
+    private val transactionDao: TransactionDao,
     categoryDao: CategoryDao,
     tripDao: TripDao,
     private val tagConfirmationUseCase: TagConfirmationUseCase,
@@ -46,5 +46,15 @@ class TransactionDetailViewModel @Inject constructor(
 
     fun retag(categoryName: String) {
         viewModelScope.launch { tagConfirmationUseCase.confirmCategory(txnId, categoryName) }
+    }
+
+    /** For duplicates the dedup gate couldn't auto-merge (spec 3.3) — e.g. two sources for one
+     * real payment whose amount/payee diverged too much to match automatically. [onDeleted] fires
+     * after the row is actually gone so the screen can navigate back rather than show a 404. */
+    fun delete(onDeleted: () -> Unit) {
+        viewModelScope.launch {
+            transactionDao.deleteById(txnId)
+            onDeleted()
+        }
     }
 }

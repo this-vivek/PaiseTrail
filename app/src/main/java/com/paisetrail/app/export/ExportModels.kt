@@ -20,6 +20,10 @@ data class ExportedTransaction(
     val placeName: String?,
     val locality: String?,
     val note: String?,
+    val lat: Double? = null,
+    val lng: Double? = null,
+    val accuracyM: Double? = null,
+    val locationQuality: String? = null,
 )
 
 @Serializable

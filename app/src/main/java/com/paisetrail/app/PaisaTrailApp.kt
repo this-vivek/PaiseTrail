@@ -37,6 +37,7 @@ class PaisaTrailApp : Application(), Configuration.Provider {
             bankSmsPatternDao.insertAll(BankSmsPatternSeed.DEFAULT_PATTERNS)
             categoryDao.insertAll(CategorySeed.DEFAULT_CATEGORIES)
             CategorySeed.EMOJI_BACKFILL.forEach { (name, emoji) -> categoryDao.backfillEmojiIfMissing(name, emoji) }
+            CategorySeed.COLOR_BACKFILL.forEach { (name, colorHex) -> categoryDao.backfillColorIfDefault(name, colorHex) }
             transactionDao.markSelfTransfers()
         }
     }

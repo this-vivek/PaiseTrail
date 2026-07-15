@@ -13,7 +13,7 @@ fun PlaceLine(placeText: String?, modifier: Modifier = Modifier) {
     if (placeText.isNullOrBlank()) return
     Text(
         text = placeText,
-        style = PaisaTheme.typography.bodySecondary,
+        style = PaisaTheme.typography.caption,
         color = PaisaTheme.colors.inkMuted,
         modifier = modifier,
     )

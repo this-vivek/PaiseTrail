@@ -63,6 +63,22 @@ class GPayNotificationParserTest {
     }
 
     @Test
+    fun `parses someone-else-paid-you notification as CREDIT with their name`() {
+        // Real GPay notification shape (bug repro): the payer's name leads, not "You received...
+        // from X" — the naive "paid" keyword alone previously misclassified this as a DEBIT.
+        val result = parser.parse(
+            title = "Google Pay",
+            text = "MUSKAN PARIHAR paid you ₹300.00",
+            bigText = null,
+            subText = null,
+        )
+        requireNotNull(result)
+        assertEquals(30000L, result.amountPaise)
+        assertEquals("MUSKAN PARIHAR", result.payeeName)
+        assertEquals(TxnDirection.CREDIT, result.direction)
+    }
+
+    @Test
     fun `returns null when amount missing despite debit keyword`() {
         val result = parser.parse(
             title = "Google Pay",

@@ -32,16 +32,17 @@ import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.clustering.Clustering
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.paisetrail.app.BuildConfig
-import com.paisetrail.app.ui.components.AmountText
 import com.paisetrail.app.ui.components.BarChart
 import com.paisetrail.app.ui.components.CategoryDot
 import com.paisetrail.app.ui.components.DonutChart
 import com.paisetrail.app.ui.components.DonutSlice
 import com.paisetrail.app.ui.components.MapPin
+import com.paisetrail.app.ui.components.PaisaCard
+import com.paisetrail.app.ui.components.TickerAmount
 import com.paisetrail.app.ui.components.formatIndianRupees
 import com.paisetrail.app.ui.components.parseCategoryColor
 import com.paisetrail.app.ui.screens.map.TxnClusterItem
-import com.paisetrail.app.ui.theme.PaisaShape
+import com.paisetrail.app.ui.theme.CardShape
 import com.paisetrail.app.ui.theme.PaisaSpacing
 import com.paisetrail.app.ui.theme.PaisaTheme
 import java.time.Instant
@@ -65,11 +66,11 @@ fun TripDetailScreen(onBack: () -> Unit, viewModel: TripDetailViewModel = hiltVi
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete \"${trip?.name}\"?", style = PaisaTheme.typography.body) },
+            title = { Text("Delete \"${trip?.name}\"?", style = PaisaTheme.typography.bodyBold) },
             text = {
                 Text(
                     "Its transactions aren't deleted — they just stop being tagged to this trip. This cannot be undone.",
-                    style = PaisaTheme.typography.bodySecondary,
+                    style = PaisaTheme.typography.caption,
                 )
             },
             confirmButton = {
@@ -91,14 +92,14 @@ fun TripDetailScreen(onBack: () -> Unit, viewModel: TripDetailViewModel = hiltVi
     ) {
         Text(
             text = "← Trips",
-            style = PaisaTheme.typography.body,
+            style = PaisaTheme.typography.bodyBold,
             color = PaisaTheme.colors.accent,
             modifier = Modifier.clickable(onClick = onBack),
         )
 
         Text(
             text = trip?.name ?: "Trip",
-            style = PaisaTheme.typography.amountListHeader,
+            style = PaisaTheme.typography.title,
             color = PaisaTheme.colors.ink,
             modifier = Modifier.padding(top = PaisaSpacing.normal),
         )
@@ -110,14 +111,14 @@ fun TripDetailScreen(onBack: () -> Unit, viewModel: TripDetailViewModel = hiltVi
             }
             Text(
                 text = range,
-                style = PaisaTheme.typography.bodySecondary,
+                style = PaisaTheme.typography.caption,
                 color = PaisaTheme.colors.inkMuted,
             )
         }
 
-        AmountText(
+        TickerAmount(
             amountPaise = totalPaise,
-            style = PaisaTheme.typography.dashboardTotal,
+            style = PaisaTheme.typography.heroAmount,
             modifier = Modifier.padding(top = PaisaSpacing.loose),
         )
 
@@ -125,35 +126,36 @@ fun TripDetailScreen(onBack: () -> Unit, viewModel: TripDetailViewModel = hiltVi
         if (categorySlices.isEmpty()) {
             EmptyLine("No spending yet")
         } else {
-            DonutChart(
-                slices = categorySlices.map {
-                    DonutSlice(parseCategoryColor(it.colorHex), it.amountPaise.toFloat(), it.emoji, it.name)
-                },
-                modifier = Modifier.padding(top = PaisaSpacing.normal),
-            )
-            Column(modifier = Modifier.padding(top = PaisaSpacing.normal)) {
-                categorySlices.forEach { slice ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CategoryDot(slice.colorHex, slice.emoji)
+            PaisaCard(modifier = Modifier.fillMaxWidth().padding(top = PaisaSpacing.tight)) {
+                DonutChart(
+                    slices = categorySlices.map {
+                        DonutSlice(parseCategoryColor(it.colorHex), it.amountPaise.toFloat(), it.emoji, it.name)
+                    },
+                )
+                Column(modifier = Modifier.padding(top = PaisaSpacing.normal)) {
+                    categorySlices.forEach { slice ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CategoryDot(slice.colorHex, slice.emoji)
+                                Text(
+                                    text = slice.name,
+                                    style = PaisaTheme.typography.bodyBold,
+                                    color = PaisaTheme.colors.ink,
+                                    modifier = Modifier.padding(start = PaisaSpacing.tight),
+                                )
+                            }
                             Text(
-                                text = slice.name,
-                                style = PaisaTheme.typography.body,
-                                color = PaisaTheme.colors.ink,
-                                modifier = Modifier.padding(start = PaisaSpacing.tight),
+                                text = formatIndianRupees(slice.amountPaise),
+                                style = PaisaTheme.typography.caption,
+                                color = PaisaTheme.colors.inkMuted,
                             )
                         }
-                        Text(
-                            text = formatIndianRupees(slice.amountPaise),
-                            style = PaisaTheme.typography.bodySecondary,
-                            color = PaisaTheme.colors.inkMuted,
-                        )
                     }
                 }
             }
@@ -161,26 +163,27 @@ fun TripDetailScreen(onBack: () -> Unit, viewModel: TripDetailViewModel = hiltVi
 
         if (BuildConfig.HAS_MAPS_API_KEY && mapItems.isNotEmpty()) {
             SectionLabel("Where you were", topPadding = PaisaSpacing.loose)
-            TripMiniMap(mapItems, modifier = Modifier.padding(top = PaisaSpacing.normal))
+            TripMiniMap(mapItems, modifier = Modifier.padding(top = PaisaSpacing.tight))
         }
 
         SectionLabel("By day", topPadding = PaisaSpacing.loose)
         if (dailySpend.isEmpty()) {
             EmptyLine("No spending yet")
         } else {
-            BarChart(
-                values = dailySpend.map { it.amountPaise.toFloat() },
-                barColor = PaisaTheme.colors.ink,
-                baselineColor = PaisaTheme.colors.hairline,
-                modifier = Modifier.padding(top = PaisaSpacing.normal),
-                dayLabels = dailySpend.map { it.day.takeLast(2) },
-                labelColor = PaisaTheme.colors.inkMuted,
-            )
+            PaisaCard(modifier = Modifier.fillMaxWidth().padding(top = PaisaSpacing.tight)) {
+                BarChart(
+                    values = dailySpend.map { it.amountPaise.toFloat() },
+                    barColor = PaisaTheme.colors.accent,
+                    baselineColor = PaisaTheme.colors.hairline,
+                    dayLabels = dailySpend.map { it.day.takeLast(2) },
+                    labelColor = PaisaTheme.colors.inkMuted,
+                )
+            }
         }
 
         Text(
             text = "Delete trip",
-            style = PaisaTheme.typography.body,
+            style = PaisaTheme.typography.bodyBold,
             color = PaisaTheme.colors.negative,
             modifier = Modifier
                 .clickable { showDeleteConfirm = true }
@@ -205,14 +208,19 @@ private fun TripMiniMap(items: List<TxnClusterItem>, modifier: Modifier = Modifi
         modifier = modifier
             .fillMaxWidth()
             .height(180.dp)
-            .clip(PaisaShape),
+            .clip(CardShape),
         cameraPositionState = cameraPositionState,
         properties = com.google.maps.android.compose.MapProperties(mapStyleOptions = com.paisetrail.app.ui.components.paisaMapStyle()),
         uiSettings = com.google.maps.android.compose.MapUiSettings(zoomControlsEnabled = false),
     ) {
         Clustering(
             items = items,
-            clusterContent = { cluster -> com.paisetrail.app.ui.components.MapClusterBubble(cluster.size) },
+            clusterContent = { cluster ->
+                val slices = cluster.items
+                    .groupBy { it.categoryColorHex }
+                    .map { (colorHex, grouped) -> com.paisetrail.app.ui.components.parseCategoryColor(colorHex) to grouped.size.toFloat() }
+                com.paisetrail.app.ui.components.MapClusterBubble(cluster.size, slices)
+            },
             clusterItemContent = { item -> MapPin(item.txn.amountPaise, item.categoryColorHex, item.categoryEmoji) },
         )
     }
@@ -222,7 +230,7 @@ private fun TripMiniMap(items: List<TxnClusterItem>, modifier: Modifier = Modifi
 private fun SectionLabel(text: String, topPadding: androidx.compose.ui.unit.Dp) {
     Text(
         text = text,
-        style = PaisaTheme.typography.overline,
+        style = PaisaTheme.typography.label,
         color = PaisaTheme.colors.inkMuted,
         modifier = Modifier.padding(top = topPadding),
     )
@@ -232,7 +240,7 @@ private fun SectionLabel(text: String, topPadding: androidx.compose.ui.unit.Dp) 
 private fun EmptyLine(text: String) {
     Text(
         text = text,
-        style = PaisaTheme.typography.bodySecondary,
+        style = PaisaTheme.typography.caption,
         color = PaisaTheme.colors.inkMuted,
         modifier = Modifier.padding(top = PaisaSpacing.tight),
     )

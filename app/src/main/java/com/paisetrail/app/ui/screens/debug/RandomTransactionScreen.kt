@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paisetrail.app.ui.components.AmountText
 import com.paisetrail.app.ui.components.CategoryDot
-import com.paisetrail.app.ui.theme.PaisaShape
+import com.paisetrail.app.ui.theme.ChipShape
 import com.paisetrail.app.ui.theme.PaisaSpacing
 import com.paisetrail.app.ui.theme.PaisaTheme
 import java.time.Instant
@@ -44,7 +44,7 @@ fun RandomTransactionScreen(onDone: () -> Unit, viewModel: RandomTransactionView
         )
         Text(
             text = "Random transaction",
-            style = PaisaTheme.typography.amountListHeader,
+            style = PaisaTheme.typography.amountL,
             color = PaisaTheme.colors.ink,
             modifier = Modifier.padding(top = PaisaSpacing.normal),
         )
@@ -53,7 +53,7 @@ fun RandomTransactionScreen(onDone: () -> Unit, viewModel: RandomTransactionView
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = PaisaSpacing.loose)
-                .background(PaisaTheme.colors.surface, PaisaShape)
+                .background(PaisaTheme.colors.surface1, ChipShape)
                 .padding(PaisaSpacing.gutter),
         ) {
             Text(
@@ -63,7 +63,7 @@ fun RandomTransactionScreen(onDone: () -> Unit, viewModel: RandomTransactionView
             )
             AmountText(
                 amountPaise = preview.draft.amountPaise,
-                style = PaisaTheme.typography.dashboardTotal,
+                style = PaisaTheme.typography.heroAmount,
                 modifier = Modifier.padding(top = PaisaSpacing.tight),
             )
             Row(
@@ -80,7 +80,7 @@ fun RandomTransactionScreen(onDone: () -> Unit, viewModel: RandomTransactionView
             }
             Text(
                 text = DATETIME_FORMAT.format(Instant.ofEpochMilli(preview.draft.occurredAt)),
-                style = PaisaTheme.typography.bodySecondary,
+                style = PaisaTheme.typography.caption,
                 color = PaisaTheme.colors.inkMuted,
                 modifier = Modifier.padding(top = PaisaSpacing.tight),
             )

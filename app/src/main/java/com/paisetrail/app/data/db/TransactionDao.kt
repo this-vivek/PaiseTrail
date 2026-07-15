@@ -10,8 +10,9 @@ data class CategorySpendRow(val categoryId: Long?, val amountPaise: Long)
 data class DailySpendRow(val day: String, val amountPaise: Long)
 data class DailyCategorySpendRow(val day: String, val categoryId: Long?, val amountPaise: Long)
 data class MonthlySpendRow(val month: String, val amountPaise: Long)
-data class MerchantSpendRow(val merchantId: Long, val merchantName: String, val amountPaise: Long)
+data class MerchantSpendRow(val merchantId: Long, val merchantName: String, val amountPaise: Long, val count: Int)
 data class TripSpendRow(val tripId: Long, val amountPaise: Long, val count: Int)
+data class CategoryUsageRow(val categoryId: Long, val count: Int)
 
 @Dao
 interface TransactionDao {
@@ -46,6 +47,11 @@ interface TransactionDao {
      * re-tested from a clean slate without reinstalling. */
     @Query("DELETE FROM transactions")
     suspend fun deleteAll()
+
+    /** Manual cleanup from the transaction detail screen — e.g. a duplicate the dedup gate let
+     * through (two sources describing the same real payment with no way to auto-merge). */
+    @Query("DELETE FROM transactions WHERE id = :id")
+    suspend fun deleteById(id: Long)
 
     /** Deleting a trip (spec 7.4 "delete trip") unlinks its transactions rather than deleting
      * them — they just stop being trip-scoped and fall back into the regular Transactions list. */
@@ -95,6 +101,14 @@ interface TransactionDao {
     )
     fun observeSpendInWindow(fromMillis: Long, toMillis: Long): Flow<Long>
 
+    /** Insights "largest single spend" stat (spec §4.3). */
+    @Query(
+        "SELECT * FROM transactions " +
+            "WHERE direction = 'DEBIT' AND status = 'CONFIRMED' AND occurredAt BETWEEN :fromMillis AND :toMillis " +
+            "ORDER BY amountPaise DESC LIMIT 1",
+    )
+    fun observeLargestSpend(fromMillis: Long, toMillis: Long): Flow<TransactionEntity?>
+
     @Query(
         "SELECT categoryId, SUM(amountPaise) as amountPaise FROM transactions " +
             "WHERE direction = 'DEBIT' AND status = 'CONFIRMED' AND occurredAt BETWEEN :fromMillis AND :toMillis " +
@@ -129,7 +143,8 @@ interface TransactionDao {
     fun observeMonthlySpend(fromMillis: Long): Flow<List<MonthlySpendRow>>
 
     @Query(
-        "SELECT t.merchantId as merchantId, m.canonicalName as merchantName, SUM(t.amountPaise) as amountPaise " +
+        "SELECT t.merchantId as merchantId, m.canonicalName as merchantName, SUM(t.amountPaise) as amountPaise, " +
+            "COUNT(*) as count " +
             "FROM transactions t JOIN merchants m ON m.id = t.merchantId " +
             "WHERE t.direction = 'DEBIT' AND t.status = 'CONFIRMED' AND t.merchantId IS NOT NULL " +
             "AND t.occurredAt BETWEEN :fromMillis AND :toMillis " +
@@ -141,6 +156,12 @@ interface TransactionDao {
      * rows have nothing to plot. */
     @Query("SELECT * FROM transactions WHERE direction = 'DEBIT' AND status = 'CONFIRMED' AND lat IS NOT NULL AND lng IS NOT NULL")
     fun observeMapped(): Flow<List<TransactionEntity>>
+
+    /** Rows with a place name/locality but no coordinates — the state left behind by importing a
+     * backup exported before [com.paisetrail.app.export.ExportedTransaction] carried lat/lng.
+     * Feeds [com.paisetrail.app.backfill.ApproxLocationBackfillWorker]. */
+    @Query("SELECT id FROM transactions WHERE lat IS NULL AND (placeName IS NOT NULL OR locality IS NOT NULL)")
+    suspend fun getIdsMissingCoordinatesWithPlace(): List<Long>
 
     /** Trip summary (spec 7.4). */
     @Query("SELECT * FROM transactions WHERE tripId = :tripId ORDER BY occurredAt ASC")
@@ -178,4 +199,23 @@ interface TransactionDao {
             "AND lat IS NOT NULL AND lng IS NOT NULL AND occurredAt >= :sinceMillis",
     )
     suspend fun getRecentUntripped(sinceMillis: Long): List<TransactionEntity>
+
+    /** This user's own most-tagged categories overall — the tag popup / Review Queue's fallback
+     * suggestion pool (spec 5 TODO: "dynamic to existing taggings") when a merchant has no learned
+     * category and no keyword rule matches, instead of a fixed, merchant-irrelevant default list. */
+    @Query(
+        "SELECT categoryId, COUNT(*) as count FROM transactions " +
+            "WHERE categoryId IS NOT NULL AND tagSource != 'NONE' " +
+            "GROUP BY categoryId ORDER BY count DESC LIMIT 5",
+    )
+    suspend fun getCategoryUsageFrequency(): List<CategoryUsageRow>
+
+    /** Same as [getCategoryUsageFrequency], reactive — the Review Queue's suggestions update live
+     * as the user tags more transactions during the same session. */
+    @Query(
+        "SELECT categoryId, COUNT(*) as count FROM transactions " +
+            "WHERE categoryId IS NOT NULL AND tagSource != 'NONE' " +
+            "GROUP BY categoryId ORDER BY count DESC LIMIT 5",
+    )
+    fun observeCategoryUsageFrequency(): Flow<List<CategoryUsageRow>>
 }

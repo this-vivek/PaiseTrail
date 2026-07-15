@@ -2,6 +2,7 @@ package com.paisetrail.app.export
 
 import com.paisetrail.app.data.db.CategoryDao
 import com.paisetrail.app.data.db.CategoryEntity
+import com.paisetrail.app.data.db.LocationQuality
 import com.paisetrail.app.data.db.MerchantDao
 import com.paisetrail.app.data.db.MerchantEntity
 import com.paisetrail.app.data.db.MerchantVpaEntity
@@ -27,6 +28,7 @@ private class FakeCategoryDao(private val categories: List<CategoryEntity>) : Ca
     override suspend fun getByName(name: String): CategoryEntity? = categories.firstOrNull { it.name == name }
     override suspend fun getById(id: Long): CategoryEntity? = categories.firstOrNull { it.id == id }
     override suspend fun backfillEmojiIfMissing(name: String, emoji: String) = Unit
+    override suspend fun backfillColorIfDefault(name: String, colorHex: String) = Unit
 }
 
 private class FakeMerchantDao(private val merchants: List<MerchantEntity>) : MerchantDao {
@@ -90,6 +92,32 @@ class DataExporterTest {
         val exported = bundle.transactions.single()
         assertTrue(exported.categoryName == null)
         assertTrue(exported.merchantName == null)
+    }
+
+    @Test
+    fun `exports raw coordinates alongside the resolved place text`() = runTest {
+        transactionDao.insert(
+            TransactionEntity(
+                amountPaise = 20000L,
+                direction = TxnDirection.DEBIT,
+                occurredAt = 1_000L,
+                lat = 28.7041,
+                lng = 77.1025,
+                accuracyM = 12.5,
+                locationQuality = LocationQuality.GOOD,
+                placeName = "Connaught Place",
+                locality = "New Delhi",
+            ),
+        )
+
+        val jsonString = exporter.buildExportJson()
+        val bundle = Json.decodeFromString(ExportBundle.serializer(), jsonString)
+
+        val exported = bundle.transactions.single()
+        assertEquals(28.7041, exported.lat)
+        assertEquals(77.1025, exported.lng)
+        assertEquals(12.5, exported.accuracyM)
+        assertEquals("GOOD", exported.locationQuality)
     }
 
     @Test

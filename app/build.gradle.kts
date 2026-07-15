@@ -117,6 +117,11 @@ dependencies {
 
     implementation(libs.mlkit.genai.prompt)
 
+    implementation(libs.haze)
+    implementation(libs.haze.materials)
+
+    implementation(libs.androidx.datastore.preferences)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)

@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paisetrail.app.capture.sms.PatternInducer
 import com.paisetrail.app.data.db.BankSmsPatternEntity
-import com.paisetrail.app.ui.theme.PaisaShape
+import com.paisetrail.app.ui.theme.ChipShape
 import com.paisetrail.app.ui.theme.PaisaSpacing
 import com.paisetrail.app.ui.theme.PaisaTheme
 
@@ -112,12 +112,12 @@ fun BankPatternManagementScreen(onBack: () -> Unit, viewModel: BankPatternManage
                     ) {
                         Text(
                             text = "$bankId · ${patternsForBank.size} pattern${if (patternsForBank.size == 1) "" else "s"}",
-                            style = PaisaTheme.typography.overline,
+                            style = PaisaTheme.typography.label,
                             color = PaisaTheme.colors.inkMuted,
                         )
                         Text(
                             text = "+ Add pattern",
-                            style = PaisaTheme.typography.bodySecondary,
+                            style = PaisaTheme.typography.caption,
                             color = PaisaTheme.colors.accent,
                             modifier = Modifier.clickable {
                                 addingPatternForBank = if (addingPatternForBank == bankId) null else bankId
@@ -170,7 +170,7 @@ private fun BankPatternRow(pattern: BankSmsPatternEntity, viewModel: BankPattern
             )
             Text(
                 text = if (pattern.enabled) "Enabled" else "Disabled",
-                style = PaisaTheme.typography.bodySecondary,
+                style = PaisaTheme.typography.caption,
                 color = if (pattern.enabled) PaisaTheme.colors.inkMuted else PaisaTheme.colors.negative,
                 modifier = Modifier.clickable { viewModel.setEnabled(pattern, !pattern.enabled) },
             )
@@ -220,7 +220,7 @@ private fun BankPatternEditForm(
 
         Text(
             text = "Don't want to write the regex yourself?",
-            style = PaisaTheme.typography.overline,
+            style = PaisaTheme.typography.label,
             color = PaisaTheme.colors.inkMuted,
             modifier = Modifier.padding(top = PaisaSpacing.normal, bottom = 4.dp),
         )
@@ -259,7 +259,7 @@ private fun BankPatternEditForm(
         suggestSummary?.let {
             Text(
                 text = it,
-                style = PaisaTheme.typography.bodySecondary,
+                style = PaisaTheme.typography.caption,
                 color = PaisaTheme.colors.inkMuted,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -267,7 +267,7 @@ private fun BankPatternEditForm(
         suggestError?.let {
             Text(
                 text = it,
-                style = PaisaTheme.typography.bodySecondary,
+                style = PaisaTheme.typography.caption,
                 color = PaisaTheme.colors.negative,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -282,7 +282,7 @@ private fun BankPatternEditForm(
         )
         Text(
             text = if (enabled) "Enabled — tap to disable" else "Disabled — tap to enable",
-            style = PaisaTheme.typography.bodySecondary,
+            style = PaisaTheme.typography.caption,
             color = if (enabled) PaisaTheme.colors.accent else PaisaTheme.colors.inkMuted,
             modifier = Modifier
                 .clickable { enabled = !enabled }
@@ -291,7 +291,7 @@ private fun BankPatternEditForm(
         errorText?.let {
             Text(
                 text = it,
-                style = PaisaTheme.typography.bodySecondary,
+                style = PaisaTheme.typography.caption,
                 color = PaisaTheme.colors.negative,
                 modifier = Modifier.padding(top = PaisaSpacing.tight),
             )
@@ -342,7 +342,7 @@ private fun FormField(
 ) {
     Text(
         text = label,
-        style = PaisaTheme.typography.overline,
+        style = PaisaTheme.typography.label,
         color = PaisaTheme.colors.inkMuted,
         modifier = Modifier.padding(top = PaisaSpacing.normal, bottom = 4.dp),
     )
@@ -353,11 +353,11 @@ private fun FormField(
         textStyle = TextStyle(color = PaisaTheme.colors.ink, fontSize = PaisaTheme.typography.body.fontSize),
         modifier = Modifier
             .fillMaxWidth()
-            .background(PaisaTheme.colors.surface, PaisaShape)
+            .background(PaisaTheme.colors.surface1, ChipShape)
             .padding(PaisaSpacing.tight),
         decorationBox = { inner ->
             if (value.isEmpty()) {
-                Text(text = hint, style = PaisaTheme.typography.bodySecondary, color = PaisaTheme.colors.inkMuted)
+                Text(text = hint, style = PaisaTheme.typography.caption, color = PaisaTheme.colors.inkMuted)
             }
             inner()
         },

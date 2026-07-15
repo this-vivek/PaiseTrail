@@ -1,6 +1,7 @@
 package com.paisetrail.app.testutil
 
 import com.paisetrail.app.data.db.CategorySpendRow
+import com.paisetrail.app.data.db.CategoryUsageRow
 import com.paisetrail.app.data.db.DailyCategorySpendRow
 import com.paisetrail.app.data.db.DailySpendRow
 import com.paisetrail.app.data.db.MerchantSpendRow
@@ -70,6 +71,10 @@ class FakeTransactionDao : TransactionDao {
         transactions.value = emptyList()
     }
 
+    override suspend fun deleteById(id: Long) {
+        transactions.value = transactions.value.filterNot { it.id == id }
+    }
+
     override suspend fun markSelfTransfers() {
         transactions.value = transactions.value.map { txn ->
             val name = txn.payeeNameRaw
@@ -94,6 +99,9 @@ class FakeTransactionDao : TransactionDao {
 
     override fun observeSpendInWindow(fromMillis: Long, toMillis: Long) =
         transactions.map { confirmedDebitsIn(fromMillis, toMillis).sumOf { txn -> txn.amountPaise } }
+
+    override fun observeLargestSpend(fromMillis: Long, toMillis: Long) =
+        transactions.map { confirmedDebitsIn(fromMillis, toMillis).maxByOrNull { txn -> txn.amountPaise } }
 
     override fun observeCategorySpend(fromMillis: Long, toMillis: Long) =
         transactions.map {
@@ -134,7 +142,7 @@ class FakeTransactionDao : TransactionDao {
             confirmedDebitsIn(fromMillis, toMillis)
                 .filter { txn -> txn.merchantId != null }
                 .groupBy { txn -> txn.merchantId!! }
-                .map { (merchantId, txns) -> MerchantSpendRow(merchantId, "Merchant $merchantId", txns.sumOf { it.amountPaise }) }
+                .map { (merchantId, txns) -> MerchantSpendRow(merchantId, "Merchant $merchantId", txns.sumOf { it.amountPaise }, txns.size) }
                 .sortedByDescending { it.amountPaise }
                 .take(5)
         }
@@ -145,6 +153,9 @@ class FakeTransactionDao : TransactionDao {
                 it.direction == TxnDirection.DEBIT && it.status == TxnStatus.CONFIRMED && it.lat != null && it.lng != null
             }
         }
+
+    override suspend fun getIdsMissingCoordinatesWithPlace(): List<Long> =
+        transactions.value.filter { it.lat == null && (it.placeName != null || it.locality != null) }.map { it.id }
 
     override fun observeForTrip(tripId: Long) =
         transactions.map { list -> list.filter { it.tripId == tripId }.sortedBy { it.occurredAt } }
@@ -184,4 +195,16 @@ class FakeTransactionDao : TransactionDao {
                 it.paymentContext == com.paisetrail.app.data.db.PaymentContext.IN_PERSON &&
                 it.tripId == null && it.lat != null && it.lng != null && it.occurredAt >= sinceMillis
         }
+
+    private fun categoryUsageFrequency(list: List<TransactionEntity>): List<CategoryUsageRow> =
+        list
+            .filter { it.categoryId != null && it.tagSource != TagSource.NONE }
+            .groupBy { it.categoryId!! }
+            .map { (categoryId, txns) -> CategoryUsageRow(categoryId, txns.size) }
+            .sortedByDescending { it.count }
+            .take(5)
+
+    override suspend fun getCategoryUsageFrequency(): List<CategoryUsageRow> = categoryUsageFrequency(transactions.value)
+
+    override fun observeCategoryUsageFrequency() = transactions.map { categoryUsageFrequency(it) }
 }
