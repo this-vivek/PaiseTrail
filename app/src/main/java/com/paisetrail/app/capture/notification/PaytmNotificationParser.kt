@@ -12,6 +12,7 @@ class PaytmNotificationParser : NotificationParser {
 
     override fun parse(title: String?, text: String?, bigText: String?, subText: String?): ParsedTxn? {
         val combined = listOfNotNull(title, bigText ?: text, subText).joinToString(" ")
+        if (TxnTextRules.isPromotional(combined)) return null
         val amountPaise = TxnTextRules.extractAmountPaise(combined) ?: return null
 
         if (TxnTextRules.isDebitSignal(combined)) {

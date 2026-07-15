@@ -1,7 +1,12 @@
 package com.paisetrail.app.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Settings
@@ -61,21 +66,26 @@ sealed class Destination(val route: String) {
     /** Pushed from Settings (spec 4.2 merchant learning). */
     data object MerchantManagement : Destination("merchant_management")
 
-    /** Pushed from the Dashboard's "Insights →" link — the 30-day chart, budgets, and month-end
-     * forecast live here instead of crowding the Home glance. */
+    /** Pushed from the Dashboard's "Insights →" link — headline stats, trend charts, and
+     * month-end forecast live here instead of crowding the Home glance. */
     data object Insights : Destination("insights")
+
+    /** Pushed from Insights' "Budget →" link — its own space (not folded into Insights) so
+     * setting/reviewing per-category limits doesn't compete with the charts for attention. */
+    data object Budget : Destination("budget")
 }
 
 data class BottomNavItem(
     val destination: Destination,
     val label: String,
     val icon: ImageVector,
+    val selectedIcon: ImageVector,
 )
 
 val BottomNavItems = listOf(
-    BottomNavItem(Destination.Dashboard, "Home", Icons.Outlined.Home),
-    BottomNavItem(Destination.Map, "Map", Icons.Outlined.Map),
-    BottomNavItem(Destination.Transactions, "Transactions", Icons.AutoMirrored.Outlined.List),
-    BottomNavItem(Destination.Trips, "Trips", Icons.Outlined.Star),
-    BottomNavItem(Destination.Settings, "Settings", Icons.Outlined.Settings),
+    BottomNavItem(Destination.Dashboard, "Home", Icons.Outlined.Home, Icons.Filled.Home),
+    BottomNavItem(Destination.Map, "Map", Icons.Outlined.Map, Icons.Filled.Map),
+    BottomNavItem(Destination.Transactions, "Transactions", Icons.AutoMirrored.Outlined.List, Icons.AutoMirrored.Filled.List),
+    BottomNavItem(Destination.Trips, "Trips", Icons.Outlined.Star, Icons.Filled.Star),
+    BottomNavItem(Destination.Settings, "Settings", Icons.Outlined.Settings, Icons.Filled.Settings),
 )

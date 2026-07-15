@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FilterList
@@ -29,8 +31,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.clustering.Cluster
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapsComposeExperimentalApi
@@ -39,14 +43,17 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.paisetrail.app.BuildConfig
 import com.paisetrail.app.data.db.CategoryEntity
 import com.paisetrail.app.ui.components.AmountText
+import com.paisetrail.app.ui.components.CategoryDot
 import com.paisetrail.app.ui.components.FancyChip
 import com.paisetrail.app.ui.components.IconPillButton
 import com.paisetrail.app.ui.components.MapClusterBubble
 import com.paisetrail.app.ui.components.MapPin
 import com.paisetrail.app.ui.components.PlaceLine
+import com.paisetrail.app.ui.components.parseCategoryColor
 import com.paisetrail.app.ui.components.paisaMapStyle
 import com.paisetrail.app.ui.theme.PaisaSpacing
 import com.paisetrail.app.ui.theme.PaisaTheme
+import com.paisetrail.app.ui.theme.SheetShape
 
 /** 100% map, floating controls, nothing else (spec 7.2/7.7). Trip-tagged pins are hidden by
  * default (each trip has its own mini-map, spec 7.4) — a "Trips" toggle reveals them here too.
@@ -54,7 +61,7 @@ import com.paisetrail.app.ui.theme.PaisaTheme
  * Material bottom sheets, kept intentionally small given the rest of Phase 4's scope. */
 @OptIn(MapsComposeExperimentalApi::class)
 @Composable
-fun MapScreen(viewModel: MapViewModel = hiltViewModel()) {
+fun MapScreen(onNavigateToTransaction: (Long) -> Unit = {}, viewModel: MapViewModel = hiltViewModel()) {
     if (!BuildConfig.HAS_MAPS_API_KEY) {
         MissingApiKeyPlaceholder()
         return
@@ -66,6 +73,7 @@ fun MapScreen(viewModel: MapViewModel = hiltViewModel()) {
     var selectedCategoryId by remember { mutableStateOf<Long?>(null) }
     var showTripPins by remember { mutableStateOf(false) }
     var selectedItem by remember { mutableStateOf<TxnClusterItem?>(null) }
+    var selectedCluster by remember { mutableStateOf<List<TxnClusterItem>?>(null) }
     var showFilterPanel by remember { mutableStateOf(false) }
     var hasCenteredOnData by remember { mutableStateOf(false) }
 
@@ -79,7 +87,10 @@ fun MapScreen(viewModel: MapViewModel = hiltViewModel()) {
             val (lat, lng) = lastLocation ?: return@LaunchedEffect
             if (hasCenteredOnData) return@LaunchedEffect
             hasCenteredOnData = true
-            cameraPositionState.position = CameraPosition.fromLatLngZoom(LatLng(lat, lng), CITY_ZOOM)
+            cameraPositionState.animate(
+                CameraUpdateFactory.newCameraPosition(CameraPosition.fromLatLngZoom(LatLng(lat, lng), CITY_ZOOM)),
+                durationMs = 900,
+            )
         }
 
         GoogleMap(
@@ -89,11 +100,15 @@ fun MapScreen(viewModel: MapViewModel = hiltViewModel()) {
         ) {
             Clustering(
                 items = items,
+                onClusterClick = { cluster ->
+                    selectedCluster = cluster.items.toList()
+                    true
+                },
                 onClusterItemClick = { item ->
                     selectedItem = item
                     true
                 },
-                clusterContent = { cluster -> MapClusterBubble(cluster.size) },
+                clusterContent = { cluster -> MapClusterBubble(cluster.size, categorySlices(cluster)) },
                 clusterItemContent = { item -> ClusterPin(item) },
             )
         }
@@ -124,20 +139,42 @@ fun MapScreen(viewModel: MapViewModel = hiltViewModel()) {
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .background(PaisaTheme.colors.surface, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    .background(PaisaTheme.colors.surfaceGlass, SheetShape)
                     .clickable { selectedItem = null }
                     .padding(PaisaSpacing.gutter),
             ) {
                 Column {
                     Text(
                         text = item.txn.payeeNameRaw ?: item.txn.vpa ?: "Unknown",
-                        style = PaisaTheme.typography.body,
+                        style = PaisaTheme.typography.bodyBold,
                         color = PaisaTheme.colors.ink,
                     )
-                    AmountText(amountPaise = item.txn.amountPaise, style = PaisaTheme.typography.amountRow)
+                    AmountText(amountPaise = item.txn.amountPaise, style = PaisaTheme.typography.amountM)
                     PlaceLine(placeText = item.txn.placeName ?: item.txn.locality)
+                    Text(
+                        text = "View transaction →",
+                        style = PaisaTheme.typography.bodyBold,
+                        color = PaisaTheme.colors.accent,
+                        modifier = Modifier
+                            .clickable {
+                                selectedItem = null
+                                onNavigateToTransaction(item.txn.id)
+                            }
+                            .padding(top = PaisaSpacing.tight),
+                    )
                 }
             }
+        }
+
+        selectedCluster?.let { clusterItems ->
+            ClusterSheet(
+                items = clusterItems,
+                onDismiss = { selectedCluster = null },
+                onPickTransaction = { txnId ->
+                    selectedCluster = null
+                    onNavigateToTransaction(txnId)
+                },
+            )
         }
 
         if (showFilterPanel) {
@@ -162,6 +199,72 @@ private fun ClusterPin(item: TxnClusterItem) {
     MapPin(item.txn.amountPaise, item.categoryColorHex, item.categoryEmoji, isTripTagged = item.txn.tripId != null)
 }
 
+/** Each represented category's color, weighted by how many pins of it are in the cluster — the
+ * data behind [MapClusterBubble]'s proportional ring. */
+private fun categorySlices(cluster: Cluster<TxnClusterItem>): List<Pair<Color, Float>> =
+    cluster.items
+        .groupBy { it.categoryColorHex }
+        .map { (colorHex, items) -> parseCategoryColor(colorHex) to items.size.toFloat() }
+
+/** Tapping a cluster bubble reveals exactly which transactions it's made of (spec 7.2) — a
+ * scrollable list rather than forcing a zoom-in-and-guess, each row tappable straight through to
+ * that transaction's detail screen. */
+@Composable
+private fun ClusterSheet(
+    items: List<TxnClusterItem>,
+    onDismiss: () -> Unit,
+    onPickTransaction: (Long) -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x99000000))
+                .clickable(onClick = onDismiss),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(PaisaTheme.colors.surface1, SheetShape),
+        ) {
+            Column(modifier = Modifier.padding(PaisaSpacing.gutter)) {
+                Text(
+                    text = "${items.size} transactions here",
+                    style = PaisaTheme.typography.label,
+                    color = PaisaTheme.colors.inkMuted,
+                    modifier = Modifier.padding(bottom = PaisaSpacing.tight),
+                )
+                LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
+                    items(items, key = { it.txn.id }) { item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPickTransaction(item.txn.id) }
+                                .padding(vertical = PaisaSpacing.tight),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CategoryDot(item.categoryColorHex, item.categoryEmoji)
+                                Column(modifier = Modifier.padding(start = PaisaSpacing.tight)) {
+                                    Text(
+                                        text = item.txn.payeeNameRaw ?: item.txn.vpa ?: "Unknown",
+                                        style = PaisaTheme.typography.bodyBold,
+                                        color = PaisaTheme.colors.ink,
+                                    )
+                                    PlaceLine(placeText = item.txn.placeName ?: item.txn.locality)
+                                }
+                            }
+                            AmountText(amountPaise = item.txn.amountPaise, style = PaisaTheme.typography.amountM)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun FilterPanel(
     categories: List<CategoryEntity>,
@@ -180,12 +283,12 @@ private fun FilterPanel(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(PaisaTheme.colors.surface, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                .background(PaisaTheme.colors.surface1, SheetShape),
         ) {
             Column(modifier = Modifier.padding(PaisaSpacing.gutter)) {
                 Text(
                     text = "Filter by category",
-                    style = PaisaTheme.typography.overline,
+                    style = PaisaTheme.typography.label,
                     color = PaisaTheme.colors.inkMuted,
                     modifier = Modifier.padding(bottom = PaisaSpacing.tight),
                 )
@@ -231,7 +334,7 @@ private fun MissingApiKeyPlaceholder() {
             )
             Text(
                 text = "Add MAPS_API_KEY to local.properties to enable the map view",
-                style = PaisaTheme.typography.bodySecondary,
+                style = PaisaTheme.typography.caption,
                 color = PaisaTheme.colors.inkMuted,
                 modifier = Modifier.padding(top = 4.dp),
             )

@@ -74,7 +74,7 @@ fun RawEventsDebugScreen(
                 Text(
                     text = "$redactedCount notification${if (redactedCount == 1) "" else "s"} arrived with " +
                         "content hidden (Android 15+ redaction, spec 8 #8) — the SMS twin covered these",
-                    style = PaisaTheme.typography.bodySecondary,
+                    style = PaisaTheme.typography.caption,
                     color = PaisaTheme.colors.inkMuted,
                     modifier = Modifier.padding(horizontal = PaisaSpacing.gutter, vertical = PaisaSpacing.tight),
                 )
@@ -88,7 +88,7 @@ fun RawEventsDebugScreen(
                 ) {
                     Text(
                         "No raw events captured yet",
-                        style = PaisaTheme.typography.bodySecondary,
+                        style = PaisaTheme.typography.caption,
                         color = PaisaTheme.colors.inkMuted,
                     )
                 }
@@ -125,19 +125,19 @@ private fun RawEventRow(event: RawEventEntity) {
             )
             Text(
                 text = if (event.parsedOk) "parsed" else "unparsed",
-                style = PaisaTheme.typography.bodySecondary,
+                style = PaisaTheme.typography.caption,
                 color = if (event.parsedOk) PaisaTheme.colors.inkMuted else PaisaTheme.colors.negative,
             )
         }
         Text(
             text = TIME_FORMAT.format(Instant.ofEpochMilli(event.postedAt)) +
                 (event.txnId?.let { " · linked to txn #$it" } ?: " · unlinked"),
-            style = PaisaTheme.typography.overline,
+            style = PaisaTheme.typography.label,
             color = PaisaTheme.colors.inkMuted,
         )
         Text(
             text = event.fullText,
-            style = PaisaTheme.typography.bodySecondary,
+            style = PaisaTheme.typography.caption,
             color = PaisaTheme.colors.ink,
             maxLines = if (expanded) Int.MAX_VALUE else 1,
             modifier = Modifier.padding(top = 4.dp),

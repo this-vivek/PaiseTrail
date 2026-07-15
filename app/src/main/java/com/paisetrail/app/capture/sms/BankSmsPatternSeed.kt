@@ -33,5 +33,23 @@ object BankSmsPatternSeed {
             senderSuffix = "SBIUPI",
             regex = """A/C X(?<acctLast4>[0-9]+)\s+debited by\s*(?<amount>[0-9,]+(?:\.[0-9]{1,2})?).*?trf to\s+(?<payee>.+?)\s+Refno\.?\s*(?<ref>[0-9]+)""",
         ),
+        // Confirmed against a real UPI-collect alert (2026-07-15):
+        //   "A/C *XX9903 debited by Rs 1.00 towards shivanibaunthiyal301@okhdfcbank. RRN:656224868668.
+        //    Avl Bal:4421.82. Not you? Call 18602677777 - IndusInd bank"
+        BankSmsPatternEntity(
+            bankId = "INDUSIND",
+            senderSuffix = "INDUSB",
+            regex = """A/C\s+\*XX(?<acctLast4>[0-9]+)\s+debited by Rs\s*(?<amount>[0-9,]+(?:\.[0-9]{1,2})?)\s+towards\s+(?<vpa>\S+@\S+?)\.?\s*RRN:(?<ref>[0-9]+)""",
+        ),
+        // Confirmed against a real mobile-banking debit alert (2026-07-15):
+        //   "Union Bank of India A/c *6623 Debited Rs:1.00 on 15-07-2026 01:04:15 by Mob Bk ref no
+        //    656215869888, Fvg: SHIVANI Avl Bal Rs:14511.55. Not you?Call 180023"
+        // No payee name in this template (a self-initiated mobile-banking transfer, not a UPI
+        // collect) — just amount/account/ref, same as any other bank's format that omits it.
+        BankSmsPatternEntity(
+            bankId = "UNIONBANK",
+            senderSuffix = "UNIONB",
+            regex = """A/c\s+\*(?<acctLast4>[0-9]+)\s+Debited\s+Rs:(?<amount>[0-9,]+(?:\.[0-9]{1,2})?)\s+on\s+[0-9-]+\s+[0-9:]+\s+by\s+Mob Bk ref no\s+(?<ref>[0-9]+)""",
+        ),
     )
 }

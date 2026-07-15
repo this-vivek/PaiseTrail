@@ -64,4 +64,51 @@ class TxnTextRulesTest {
     fun `debit signal false when neither debit nor credit keyword present`() {
         assertFalse(TxnTextRules.isDebitSignal("Your account balance is ₹450"))
     }
+
+    @Test
+    fun `debit signal false for someone else paying the user`() {
+        // Regression: "paid you" is a credit (someone else sent the user money) — the bare "paid"
+        // keyword alone can't distinguish it from "you paid X", a real debit.
+        assertFalse(TxnTextRules.isDebitSignal("MUSKAN PARIHAR paid you ₹300.00"))
+    }
+
+    @Test
+    fun `credit signal true for someone else paying the user`() {
+        assertTrue(TxnTextRules.isCreditSignal("MUSKAN PARIHAR paid you ₹300.00"))
+    }
+
+    @Test
+    fun `debit signal false for someone else sending the user money`() {
+        assertFalse(TxnTextRules.isDebitSignal("Rohit sent you ₹500"))
+    }
+
+    @Test
+    fun `credit signal true for someone else sending the user money`() {
+        assertTrue(TxnTextRules.isCreditSignal("Rohit sent you ₹500"))
+    }
+
+    @Test
+    fun `debit signal still true for the user paying someone else`() {
+        assertTrue(TxnTextRules.isDebitSignal("You paid ₹450 to Sharma Tea Stall"))
+    }
+
+    @Test
+    fun `debit signal still true for the user sending someone else money`() {
+        assertTrue(TxnTextRules.isDebitSignal("You sent ₹500 to Rohit"))
+    }
+
+    @Test
+    fun `promotional true for Postpaid credit-limit marketing text`() {
+        // Real captured notification that was wrongly turned into a transaction.
+        assertTrue(
+            TxnTextRules.isPromotional(
+                "Up to ₹60,000 Credit limit No Joining Fee No Joining Fee No Paperwork Tap to activate Paytm Postpaid today",
+            ),
+        )
+    }
+
+    @Test
+    fun `promotional false for a real payment message`() {
+        assertFalse(TxnTextRules.isPromotional("You paid ₹450 to Sharma Tea Stall"))
+    }
 }

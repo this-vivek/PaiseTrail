@@ -7,13 +7,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
@@ -31,15 +32,20 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paisetrail.app.data.db.TripEntity
+import com.paisetrail.app.data.db.TxnDirection
+import com.paisetrail.app.ui.components.EmptyState
 import com.paisetrail.app.ui.components.FancyChip
-import com.paisetrail.app.ui.components.HairlineDivider
 import com.paisetrail.app.ui.components.IconPillButton
+import com.paisetrail.app.ui.components.StaggeredEntry
 import com.paisetrail.app.ui.components.TxnRow
+import com.paisetrail.app.ui.theme.ChipShape
 import com.paisetrail.app.ui.theme.PaisaSpacing
 import com.paisetrail.app.ui.theme.PaisaTheme
+import com.paisetrail.app.ui.theme.SheetShape
 
 /** Grouped-by-day list with search + a flexible filter panel (category and trip, spec 7.3).
- * Tapping a row opens the transaction detail screen, which is also where re-tagging happens now. */
+ * Tapping a row opens the transaction detail screen, which is also where re-tagging happens now.
+ * Rows are spaced 4dp apart with sticky-style date eyebrows instead of hairlines (spec §4.4). */
 @Composable
 fun TransactionsScreen(onNavigateToTransaction: (Long) -> Unit = {}, viewModel: TransactionsViewModel = hiltViewModel()) {
     val groups by viewModel.groupedTransactions.collectAsState()
@@ -62,27 +68,26 @@ fun TransactionsScreen(onNavigateToTransaction: (Long) -> Unit = {}, viewModel: 
         ) {
             Text(
                 text = "‹",
-                style = PaisaTheme.typography.amountListHeader,
+                style = PaisaTheme.typography.amountL,
                 color = PaisaTheme.colors.accent,
                 modifier = Modifier.clickable { viewModel.previousMonth() }.padding(horizontal = PaisaSpacing.tight),
             )
             Text(
                 text = monthLabel,
-                style = PaisaTheme.typography.body,
+                style = PaisaTheme.typography.bodyBold,
                 color = PaisaTheme.colors.ink,
             )
             Text(
                 text = "›",
-                style = PaisaTheme.typography.amountListHeader,
+                style = PaisaTheme.typography.amountL,
                 color = PaisaTheme.colors.accent,
                 modifier = Modifier.clickable { viewModel.nextMonth() }.padding(horizontal = PaisaSpacing.tight),
             )
         }
-        HairlineDivider()
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(PaisaSpacing.gutter),
+                .padding(horizontal = PaisaSpacing.gutter, vertical = PaisaSpacing.tight),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(PaisaSpacing.tight),
         ) {
@@ -92,7 +97,7 @@ fun TransactionsScreen(onNavigateToTransaction: (Long) -> Unit = {}, viewModel: 
                 textStyle = TextStyle(color = PaisaTheme.colors.ink, fontSize = PaisaTheme.typography.body.fontSize),
                 modifier = Modifier
                     .weight(1f)
-                    .background(PaisaTheme.colors.surface, RoundedCornerShape(12.dp))
+                    .background(PaisaTheme.colors.surface2, ChipShape)
                     .padding(horizontal = PaisaSpacing.tight, vertical = PaisaSpacing.tight),
                 decorationBox = { inner ->
                     if (query.isEmpty()) {
@@ -112,23 +117,25 @@ fun TransactionsScreen(onNavigateToTransaction: (Long) -> Unit = {}, viewModel: 
             )
         }
 
-        HairlineDivider(modifier = Modifier.padding(bottom = PaisaSpacing.tight))
-
         if (groups.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = if (isFiltering) "No matching transactions" else "No transactions in $monthLabel",
-                    style = PaisaTheme.typography.bodySecondary,
-                    color = PaisaTheme.colors.inkMuted,
-                )
-            }
+            EmptyState(
+                title = if (isFiltering) "No matching transactions" else "No transactions",
+                body = if (isFiltering) "Try a different search or filter" else "Nothing recorded in $monthLabel yet",
+                modifier = Modifier.fillMaxSize(),
+            )
         } else {
+            val entryIndexByTxnId = remember(groups) {
+                val map = mutableMapOf<Long, Int>()
+                var i = 0
+                groups.forEach { group -> group.rows.forEach { row -> map[row.txn.id] = i++ } }
+                map
+            }
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 groups.forEach { group ->
                     item(key = "header_${group.dayLabel}") {
                         Text(
                             text = group.dayLabel,
-                            style = PaisaTheme.typography.overline,
+                            style = PaisaTheme.typography.label,
                             color = PaisaTheme.colors.inkMuted,
                             modifier = Modifier.padding(
                                 horizontal = PaisaSpacing.gutter,
@@ -137,15 +144,18 @@ fun TransactionsScreen(onNavigateToTransaction: (Long) -> Unit = {}, viewModel: 
                         )
                     }
                     items(group.rows, key = { it.txn.id }) { row ->
-                        TxnRow(
-                            amountPaise = row.txn.amountPaise,
-                            merchantName = row.txn.payeeNameRaw ?: row.txn.vpa ?: "Unknown",
-                            placeText = row.txn.placeName ?: row.txn.locality,
-                            categoryColorHex = row.categoryColorHex,
-                            categoryEmoji = row.categoryEmoji,
-                            onClick = { onNavigateToTransaction(row.txn.id) },
-                        )
-                        HairlineDivider()
+                        StaggeredEntry(index = entryIndexByTxnId[row.txn.id] ?: 0) {
+                            TxnRow(
+                                amountPaise = row.txn.amountPaise,
+                                merchantName = row.txn.payeeNameRaw ?: row.txn.vpa ?: "Unknown",
+                                placeText = row.txn.placeName ?: row.txn.locality,
+                                categoryColorHex = row.categoryColorHex,
+                                categoryEmoji = row.categoryEmoji,
+                                isCredit = row.txn.direction == TxnDirection.CREDIT,
+                                onClick = { onNavigateToTransaction(row.txn.id) },
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
                     }
                 }
             }
@@ -186,12 +196,12 @@ private fun TransactionFilterPanel(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(PaisaTheme.colors.surface, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                .background(PaisaTheme.colors.surface1, SheetShape),
         ) {
             Column(modifier = Modifier.padding(PaisaSpacing.gutter)) {
                 Text(
                     text = "Category",
-                    style = PaisaTheme.typography.overline,
+                    style = PaisaTheme.typography.label,
                     color = PaisaTheme.colors.inkMuted,
                     modifier = Modifier.padding(bottom = PaisaSpacing.tight),
                 )
@@ -219,7 +229,7 @@ private fun TransactionFilterPanel(
 
                 Text(
                     text = "Trip",
-                    style = PaisaTheme.typography.overline,
+                    style = PaisaTheme.typography.label,
                     color = PaisaTheme.colors.inkMuted,
                     modifier = Modifier.padding(top = PaisaSpacing.normal, bottom = PaisaSpacing.tight),
                 )

@@ -174,6 +174,45 @@ class RawEventIngestorTest {
     }
 
     @Test
+    fun `CRED notification rounded amount and brand name merges with the bank SMS within the tight window`() = runTest {
+        // Real case: HDFC SMS "Sent Rs.1898.10 ... To UFF COSMETICS LLP ... Ref 656129729038" one
+        // second apart from CRED's own notification "1,898 paid to Uffco" — CRED rounds off the
+        // paise for display, and shows its own brand name rather than the bank's settlement
+        // entity, so neither amount nor payee can match exactly. Near-simultaneous arrival is what
+        // ties them together.
+        val credNotif = ParsedTxn(amountPaise = 189_800L, payeeName = "Uffco", direction = TxnDirection.DEBIT)
+        val bankSms = ParsedTxn(
+            amountPaise = 189_810L,
+            payeeName = "UFF COSMETICS LLP",
+            refId = "656129729038",
+            acctLast4 = "6996",
+            direction = TxnDirection.DEBIT,
+        )
+        ingestor.ingest(RawEventSource.SMS, "AD-HDFCBK-S", "sms text", 1_000L, bankSms)
+        ingestor.ingest(RawEventSource.NOTIFICATION, "com.dreamplug.androidapp", "notif text", 1_001L, credNotif)
+
+        assertEquals(1, transactionDao.transactions.value.size)
+        assertEquals(189_810L, transactionDao.transactions.value.single().amountPaise)
+    }
+
+    @Test
+    fun `same-rupee amount but unrelated payee outside the tight window does not merge`() = runTest {
+        // Guards the leniency above from swallowing genuinely unrelated same-rounded-amount
+        // payments that just happen to land in the broader 3-minute fuzzy window.
+        val credNotif = ParsedTxn(amountPaise = 189_800L, payeeName = "Uffco", direction = TxnDirection.DEBIT)
+        val bankSms = ParsedTxn(
+            amountPaise = 189_810L,
+            payeeName = "UFF COSMETICS LLP",
+            refId = "656129729038",
+            direction = TxnDirection.DEBIT,
+        )
+        ingestor.ingest(RawEventSource.SMS, "AD-HDFCBK-S", "sms text", 1_000L, bankSms)
+        ingestor.ingest(RawEventSource.NOTIFICATION, "com.dreamplug.androidapp", "notif text", 20_000L, credNotif)
+
+        assertEquals(2, transactionDao.transactions.value.size)
+    }
+
+    @Test
     fun `events outside fuzzy window do not merge`() = runTest {
         ingestor.ingest(RawEventSource.NOTIFICATION, "com.google.android.apps.nbu.paisa.user", "notif text", 0L, notifTxn)
         ingestor.ingest(RawEventSource.SMS, "VM-HDFCBK", "sms text", 300_000L, smsTxn.copy(refId = null))

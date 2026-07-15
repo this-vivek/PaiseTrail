@@ -9,14 +9,40 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.BatteryChargingFull
+import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.Layers
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Sms
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,7 +53,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -37,6 +66,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.work.WorkInfo
+import com.paisetrail.app.ui.components.PaisaCard
+import com.paisetrail.app.ui.theme.ChipShape
 import com.paisetrail.app.ui.theme.PaisaSpacing
 import com.paisetrail.app.ui.theme.PaisaTheme
 import java.io.BufferedReader
@@ -44,11 +75,8 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import kotlinx.coroutines.launch
 
-/** Full settings screen (source toggles, allowlist, bank pattern editor, ...) is Phase 4 work
- * (spec 7.6) — for now this exposes what Phase 1/3 actually need: granting capture permissions,
- * SMS backfill, and the parser debug screen. Without the permission grants the capture layer is
- * registered but never invoked — notification access can only be toggled from system settings,
- * and SMS is a dangerous runtime permission that the manifest alone doesn't grant. */
+/** Sectioned PaisaCards with eyebrow labels (spec §4.9): Capture, Data, Manage, and a collapsed
+ * Developer section for debug tools. Each row is a 36dp icon tile + title/caption. */
 @Composable
 fun SettingsScreen(
     onNavigateToRawEventsDebug: () -> Unit,
@@ -69,9 +97,6 @@ fun SettingsScreen(
     var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
     var batteryExempted by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
 
-    // All these grants happen outside the app (system settings screens or a runtime dialog that
-    // can return without a callback), so re-check on every resume rather than relying on a
-    // one-shot launcher result.
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -191,15 +216,16 @@ fun SettingsScreen(
 
     var showClearConfirm by remember { mutableStateOf(false) }
     var clearStatus by remember { mutableStateOf<String?>(null) }
+    var developerExpanded by remember { mutableStateOf(false) }
 
     if (showClearConfirm) {
         AlertDialog(
             onDismissRequest = { showClearConfirm = false },
-            title = { Text("Clear all transactions?", style = PaisaTheme.typography.body) },
+            title = { Text("Clear all transactions?", style = PaisaTheme.typography.bodyBold) },
             text = {
                 Text(
                     "This permanently deletes every transaction on this device. This cannot be undone.",
-                    style = PaisaTheme.typography.bodySecondary,
+                    style = PaisaTheme.typography.caption,
                 )
             },
             confirmButton = {
@@ -224,237 +250,340 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(PaisaSpacing.gutter),
     ) {
         Text(
             text = "Settings",
-            style = PaisaTheme.typography.amountListHeader,
+            style = PaisaTheme.typography.title,
             color = PaisaTheme.colors.ink,
-            modifier = Modifier.padding(PaisaSpacing.gutter),
         )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Notification access",
-            subtitle = if (listenerEnabled) {
-                "Granted — GPay, PhonePe, CRED and Paytm notifications are captured"
-            } else {
-                "Required to capture UPI app notifications. Tap to open system settings"
-            },
-            isProblem = !listenerEnabled,
-            onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "SMS permission",
-            subtitle = if (smsGranted) {
-                "Granted — bank debit SMS are captured"
-            } else {
-                "Required to capture bank debit SMS. Tap to grant"
-            },
-            isProblem = !smsGranted,
-            onClick = {
-                smsPermissionLauncher.launch(arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS))
-            },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Draw over other apps",
-            subtitle = if (overlayGranted) {
-                "Granted — the tag popup shows as an on-screen overlay instead of a notification"
-            } else {
-                "Optional (spec 5) — grant for a forced on-screen popup instead of a notification"
-            },
-            isProblem = false,
-            onClick = {
-                context.startActivity(
-                    Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:${context.packageName}"),
-                    ),
-                )
-            },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Ignore battery optimization",
-            subtitle = if (batteryExempted) {
-                "Exempted — capture keeps running when the OS would otherwise kill it in the background"
-            } else {
-                "Required on most phones (spec 10/11) — some OEMs (Xiaomi/Oppo/Vivo/Nothing) kill " +
-                    "the capture service without this. Tap to grant"
-            },
-            isProblem = !batteryExempted,
-            onClick = {
-                context.startActivity(
-                    Intent(
-                        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                        Uri.parse("package:${context.packageName}"),
-                    ),
-                )
-            },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Backfill SMS history",
-            subtitle = when (backfillState) {
-                WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED -> "Running — reconstructing past months from bank SMS…"
-                WorkInfo.State.SUCCEEDED -> "Done — tap to run again over the last 180 days"
-                WorkInfo.State.FAILED -> "Failed — tap to retry"
-                else -> "Reconstruct past transactions from bank SMS already on this phone (spec 3.4)"
-            },
-            isProblem = backfillState == WorkInfo.State.FAILED,
-            onClick = { viewModel.startBackfill() },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Export data",
-            subtitle = exportStatus ?: "Save all transactions as JSON (spec 7.6)",
-            isProblem = exportStatus?.startsWith("Export failed") == true,
-            onClick = {
-                val fileName = "paisetrail-export-${System.currentTimeMillis()}.json"
-                exportLauncher.launch(fileName)
-            },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Import data",
-            subtitle = importStatus ?: "Restore transactions from a PaisaTrail JSON export (spec 7.6)",
-            isProblem = importStatus?.startsWith("Import failed") == true,
-            onClick = { importLauncher.launch(arrayOf("application/json")) },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Auto-tag from JSON",
-            subtitle = autoTagStatus
-                ?: "Learn categories from a labeled PaisaTrail export and apply them to " +
-                    "everything still needing review",
-            isProblem = autoTagStatus?.startsWith("Auto-tag failed") == true,
-            onClick = { autoTagLauncher.launch(arrayOf("application/json")) },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Auto-tag with AI",
-            subtitle = when {
-                aiTagRunning -> "Working…"
-                aiTagStatus != null -> aiTagStatus!!
-                else -> "Tries on-device Gemini Nano first, falls back to an offline similarity " +
-                    "match against your own tagged history"
-            },
-            isProblem = false,
-            onClick = {
-                if (aiTagRunning) return@SettingsRow
-                aiTagRunning = true
-                aiTagStatus = null
-                coroutineScope.launch {
-                    try {
-                        val result = viewModel.autoTagWithAi()
-                        aiTagStatus = "Tagged ${result.taggedByAi + result.taggedByLocal} of ${result.candidateCount} " +
-                            "(${result.taggedByAi} by AI, ${result.taggedByLocal} by local match) · ${result.aiStatus}"
-                    } catch (e: Exception) {
-                        aiTagStatus = "Auto-tag failed: ${e.message}"
-                    } finally {
-                        aiTagRunning = false
+
+        SettingsSection("Capture") {
+            StatusRow(
+                icon = Icons.Outlined.Notifications,
+                title = "Notification access",
+                subtitle = if (listenerEnabled) {
+                    "GPay, PhonePe, CRED and Paytm notifications are captured"
+                } else {
+                    "Required to capture UPI app notifications. Tap to open system settings"
+                },
+                active = listenerEnabled,
+                onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
+            )
+            StatusRow(
+                icon = Icons.Outlined.Sms,
+                title = "SMS permission",
+                subtitle = if (smsGranted) "Bank debit SMS are captured" else "Required to capture bank debit SMS. Tap to grant",
+                active = smsGranted,
+                onClick = {
+                    smsPermissionLauncher.launch(arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS))
+                },
+            )
+            StatusRow(
+                icon = Icons.Outlined.Layers,
+                title = "Draw over other apps",
+                subtitle = if (overlayGranted) {
+                    "The tag popup shows as an on-screen overlay instead of a notification"
+                } else {
+                    "Optional — grant for a forced on-screen popup instead of a notification"
+                },
+                active = overlayGranted,
+                optional = true,
+                onClick = {
+                    context.startActivity(
+                        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")),
+                    )
+                },
+            )
+            StatusRow(
+                icon = Icons.Outlined.BatteryChargingFull,
+                title = "Ignore battery optimization",
+                subtitle = if (batteryExempted) {
+                    "Capture keeps running when the OS would otherwise kill it in the background"
+                } else {
+                    "Required on most phones — some OEMs kill the capture service without this. Tap to grant"
+                },
+                active = batteryExempted,
+                onClick = {
+                    context.startActivity(
+                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}")),
+                    )
+                },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.History,
+                title = "Backfill SMS history",
+                subtitle = when (backfillState) {
+                    WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED -> "Running — reconstructing past months from bank SMS…"
+                    WorkInfo.State.SUCCEEDED -> "Done — tap to run again over the last 180 days"
+                    WorkInfo.State.FAILED -> "Failed — tap to retry"
+                    else -> "Reconstruct past transactions from bank SMS already on this phone"
+                },
+                isProblem = backfillState == WorkInfo.State.FAILED,
+                onClick = { viewModel.startBackfill() },
+                isLast = true,
+            )
+        }
+
+        SettingsSection("Data") {
+            SettingsRow(
+                icon = Icons.Outlined.Upload,
+                title = "Export data",
+                subtitle = exportStatus ?: "Save all transactions as JSON",
+                isProblem = exportStatus?.startsWith("Export failed") == true,
+                onClick = { exportLauncher.launch("paisetrail-export-${System.currentTimeMillis()}.json") },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Download,
+                title = "Import data",
+                subtitle = importStatus ?: "Restore transactions from a PaisaTrail JSON export",
+                isProblem = importStatus?.startsWith("Import failed") == true,
+                onClick = { importLauncher.launch(arrayOf("application/json")) },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.AutoAwesome,
+                title = "Auto-tag from JSON",
+                subtitle = autoTagStatus ?: "Learn categories from a labeled export, apply them to what needs review",
+                isProblem = autoTagStatus?.startsWith("Auto-tag failed") == true,
+                onClick = { autoTagLauncher.launch(arrayOf("application/json")) },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.AutoAwesome,
+                title = "Auto-tag with AI",
+                subtitle = when {
+                    aiTagRunning -> "Working…"
+                    aiTagStatus != null -> aiTagStatus!!
+                    else -> "Tries on-device Gemini Nano first, falls back to an offline similarity match"
+                },
+                isProblem = false,
+                onClick = {
+                    if (aiTagRunning) return@SettingsRow
+                    aiTagRunning = true
+                    aiTagStatus = null
+                    coroutineScope.launch {
+                        try {
+                            val result = viewModel.autoTagWithAi()
+                            aiTagStatus = "Tagged ${result.taggedByAi + result.taggedByLocal} of ${result.candidateCount} " +
+                                "(${result.taggedByAi} by AI, ${result.taggedByLocal} by local match) · ${result.aiStatus}"
+                        } catch (e: Exception) {
+                            aiTagStatus = "Auto-tag failed: ${e.message}"
+                        } finally {
+                            aiTagRunning = false
+                        }
                     }
-                }
-            },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Categories",
-            subtitle = "Rename, recolor, re-icon, add, or delete categories",
-            isProblem = false,
-            onClick = onNavigateToCategoryManagement,
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Bank SMS patterns",
-            subtitle = "Add or edit a bank's SMS regex without a code change (spec 3.2)",
-            isProblem = false,
-            onClick = onNavigateToBankPatternManagement,
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Export bank patterns",
-            subtitle = patternExportStatus ?: "Save every bank SMS pattern (including disabled ones) as JSON",
-            isProblem = patternExportStatus?.startsWith("Export failed") == true,
-            onClick = {
-                val fileName = "paisetrail-bank-patterns-${System.currentTimeMillis()}.json"
-                patternExportLauncher.launch(fileName)
-            },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Import bank patterns",
-            subtitle = patternImportStatus ?: "Restore bank patterns from a PaisaTrail bank-pattern JSON export",
-            isProblem = patternImportStatus?.startsWith("Import failed") == true,
-            onClick = { patternImportLauncher.launch(arrayOf("application/json")) },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Merchants",
-            subtitle = "Add or edit a merchant and its default category/VPA (spec 4.2)",
-            isProblem = false,
-            onClick = onNavigateToMerchantManagement,
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Review queue",
-            subtitle = "Transactions still needing a category (spec 7.5) — reachable here until " +
-                "the Dashboard's badge exists (Phase 4)",
-            isProblem = false,
-            onClick = onNavigateToReviewQueue,
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Parser debug",
-            subtitle = "Inspect recent raw events and their parse results",
-            isProblem = false,
-            onClick = onNavigateToRawEventsDebug,
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Add random transaction",
-            subtitle = "Debug tool — preview a randomized transaction, re-roll it, then add it",
-            isProblem = false,
-            onClick = onNavigateToRandomTransaction,
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Add custom transaction",
-            subtitle = "Debug tool — manually set the amount, payee, category, and date",
-            isProblem = false,
-            onClick = onNavigateToManualTransaction,
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
-        SettingsRow(
-            title = "Clear all transactions",
-            subtitle = clearStatus ?: "Debug tool — permanently deletes every transaction on this device",
-            isProblem = true,
-            onClick = { showClearConfirm = true },
-        )
-        HorizontalDivider(color = PaisaTheme.colors.hairline, thickness = 1.dp)
+                },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Upload,
+                title = "Export bank patterns",
+                subtitle = patternExportStatus ?: "Save every bank SMS pattern (including disabled ones) as JSON",
+                isProblem = patternExportStatus?.startsWith("Export failed") == true,
+                onClick = { patternExportLauncher.launch("paisetrail-bank-patterns-${System.currentTimeMillis()}.json") },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Download,
+                title = "Import bank patterns",
+                subtitle = patternImportStatus ?: "Restore bank patterns from a PaisaTrail export",
+                isProblem = patternImportStatus?.startsWith("Import failed") == true,
+                onClick = { patternImportLauncher.launch(arrayOf("application/json")) },
+                isLast = true,
+            )
+        }
+
+        SettingsSection("Manage") {
+            SettingsRow(
+                icon = Icons.Outlined.Category,
+                title = "Categories",
+                subtitle = "Rename, recolor, re-icon, add, or delete categories",
+                isProblem = false,
+                onClick = onNavigateToCategoryManagement,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Sms,
+                title = "Bank SMS patterns",
+                subtitle = "Add or edit a bank's SMS regex without a code change",
+                isProblem = false,
+                onClick = onNavigateToBankPatternManagement,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Storefront,
+                title = "Merchants",
+                subtitle = "Add or edit a merchant and its default category/VPA",
+                isProblem = false,
+                onClick = onNavigateToMerchantManagement,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Inbox,
+                title = "Review queue",
+                subtitle = "Transactions still needing a category",
+                isProblem = false,
+                onClick = onNavigateToReviewQueue,
+                isLast = true,
+            )
+        }
+
+        SettingsSection(
+            title = "Developer",
+            collapsible = true,
+            expanded = developerExpanded,
+            onToggle = { developerExpanded = !developerExpanded },
+        ) {
+            SettingsRow(
+                icon = Icons.Outlined.BugReport,
+                title = "Parser debug",
+                subtitle = "Inspect recent raw events and their parse results",
+                isProblem = false,
+                onClick = onNavigateToRawEventsDebug,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Add,
+                title = "Add random transaction",
+                subtitle = "Preview a randomized transaction, re-roll it, then add it",
+                isProblem = false,
+                onClick = onNavigateToRandomTransaction,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Edit,
+                title = "Add custom transaction",
+                subtitle = "Manually set the amount, payee, category, and date",
+                isProblem = false,
+                onClick = onNavigateToManualTransaction,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.DeleteForever,
+                title = "Clear all transactions",
+                subtitle = clearStatus ?: "Permanently deletes every transaction on this device",
+                isProblem = true,
+                onClick = { showClearConfirm = true },
+                isLast = true,
+            )
+        }
     }
 }
 
 @Composable
-private fun SettingsRow(title: String, subtitle: String, isProblem: Boolean, onClick: () -> Unit) {
-    Column(
+private fun SettingsSection(
+    title: String,
+    collapsible: Boolean = false,
+    expanded: Boolean = true,
+    onToggle: (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .padding(top = PaisaSpacing.loose, bottom = PaisaSpacing.tight)
+            .let { if (collapsible) it.clickable { onToggle?.invoke() } else it }
+            .fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = title, style = PaisaTheme.typography.label, color = PaisaTheme.colors.inkMuted)
+        if (collapsible) {
+            Icon(
+                imageVector = if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                contentDescription = null,
+                tint = PaisaTheme.colors.inkMuted,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+    if (!collapsible || expanded) {
+        PaisaCard(modifier = Modifier.fillMaxWidth(), padding = 0.dp) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun StatusRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    active: Boolean,
+    onClick: () -> Unit,
+    optional: Boolean = false,
+    isLast: Boolean = false,
+) {
+    val pillColor = if (active) PaisaTheme.colors.positive else if (optional) PaisaTheme.colors.inkMuted else PaisaTheme.colors.warning
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = PaisaSpacing.gutter, vertical = PaisaSpacing.normal),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            style = PaisaTheme.typography.body,
-            color = if (isProblem) PaisaTheme.colors.negative else PaisaTheme.colors.ink,
-        )
-        Text(
-            text = subtitle,
-            style = PaisaTheme.typography.bodySecondary,
-            color = PaisaTheme.colors.inkMuted,
-        )
+        IconTile(icon)
+        Column(modifier = Modifier.weight(1f).padding(start = PaisaSpacing.tight)) {
+            Text(text = title, style = PaisaTheme.typography.bodyBold, color = PaisaTheme.colors.ink)
+            Text(text = subtitle, style = PaisaTheme.typography.caption, color = PaisaTheme.colors.inkMuted)
+        }
+        Box(
+            modifier = Modifier
+                .background(pillColor.copy(alpha = 0.16f), ChipShape)
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+        ) {
+            Text(
+                text = if (active) "Active" else "Grant",
+                style = PaisaTheme.typography.caption,
+                color = pillColor,
+            )
+        }
     }
+    if (!isLast) HairlineInset()
+}
+
+@Composable
+private fun SettingsRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    isProblem: Boolean,
+    onClick: () -> Unit,
+    isLast: Boolean = false,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = PaisaSpacing.gutter, vertical = PaisaSpacing.normal),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconTile(icon, tint = if (isProblem) PaisaTheme.colors.negative else PaisaTheme.colors.ink)
+        Column(modifier = Modifier.weight(1f).padding(start = PaisaSpacing.tight)) {
+            Text(
+                text = title,
+                style = PaisaTheme.typography.bodyBold,
+                color = if (isProblem) PaisaTheme.colors.negative else PaisaTheme.colors.ink,
+            )
+            Text(text = subtitle, style = PaisaTheme.typography.caption, color = PaisaTheme.colors.inkMuted)
+        }
+        Text(text = "›", style = PaisaTheme.typography.title, color = PaisaTheme.colors.inkFaint)
+    }
+    if (!isLast) HairlineInset()
+}
+
+@Composable
+private fun IconTile(icon: ImageVector, tint: Color = PaisaTheme.colors.ink) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .background(PaisaTheme.colors.surface2, RoundedCornerShape(10.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+    }
+}
+
+@Composable
+private fun HairlineInset() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = PaisaSpacing.gutter + 36.dp + PaisaSpacing.tight)
+            .height(1.dp)
+            .background(PaisaTheme.colors.hairline),
+    )
 }
 
 private fun hasSmsPermissions(context: Context): Boolean =

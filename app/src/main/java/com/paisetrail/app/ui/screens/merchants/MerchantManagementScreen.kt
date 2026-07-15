@@ -40,7 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.paisetrail.app.data.db.MerchantEntity
 import com.paisetrail.app.ui.components.CategoryDot
 import com.paisetrail.app.ui.components.CategoryPickerSheet
-import com.paisetrail.app.ui.theme.PaisaShape
+import com.paisetrail.app.ui.theme.ChipShape
 import com.paisetrail.app.ui.theme.PaisaSpacing
 import com.paisetrail.app.ui.theme.PaisaTheme
 
@@ -121,7 +121,7 @@ private fun MerchantRow(
             text = {
                 Text(
                     "Transactions resolved to this merchant just stop counting toward Top Merchants. This cannot be undone.",
-                    style = PaisaTheme.typography.bodySecondary,
+                    style = PaisaTheme.typography.caption,
                 )
             },
             confirmButton = {
@@ -145,14 +145,14 @@ private fun MerchantRow(
                 CategoryDot(defaultCategory.colorHex, defaultCategory.emoji)
                 Text(
                     text = defaultCategory.name,
-                    style = PaisaTheme.typography.bodySecondary,
+                    style = PaisaTheme.typography.caption,
                     color = PaisaTheme.colors.inkMuted,
                     modifier = Modifier.padding(start = PaisaSpacing.tight),
                 )
             } else {
                 Text(
                     text = if (merchant.isOnline) "Online" else "No default category",
-                    style = PaisaTheme.typography.bodySecondary,
+                    style = PaisaTheme.typography.caption,
                     color = PaisaTheme.colors.inkMuted,
                 )
             }
@@ -192,7 +192,7 @@ private fun MerchantEditForm(
     Column(modifier = Modifier.fillMaxWidth().padding(top = PaisaSpacing.tight)) {
         Text(
             text = "Name",
-            style = PaisaTheme.typography.overline,
+            style = PaisaTheme.typography.label,
             color = PaisaTheme.colors.inkMuted,
             modifier = Modifier.padding(bottom = 4.dp),
         )
@@ -200,7 +200,7 @@ private fun MerchantEditForm(
             value = name,
             onValueChange = { name = it },
             textStyle = TextStyle(color = PaisaTheme.colors.ink, fontSize = PaisaTheme.typography.body.fontSize),
-            modifier = Modifier.fillMaxWidth().background(PaisaTheme.colors.surface, PaisaShape).padding(PaisaSpacing.tight),
+            modifier = Modifier.fillMaxWidth().background(PaisaTheme.colors.surface1, ChipShape).padding(PaisaSpacing.tight),
             decorationBox = { inner ->
                 if (name.isEmpty()) {
                     Text("Merchant name", style = PaisaTheme.typography.body, color = PaisaTheme.colors.inkMuted)
@@ -211,7 +211,7 @@ private fun MerchantEditForm(
 
         Text(
             text = "Default category",
-            style = PaisaTheme.typography.overline,
+            style = PaisaTheme.typography.label,
             color = PaisaTheme.colors.inkMuted,
             modifier = Modifier.padding(top = PaisaSpacing.normal, bottom = 4.dp),
         )
@@ -219,7 +219,7 @@ private fun MerchantEditForm(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { showCategoryPicker = true }
-                .background(PaisaTheme.colors.surface, PaisaShape)
+                .background(PaisaTheme.colors.surface1, ChipShape)
                 .padding(PaisaSpacing.tight),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -234,7 +234,7 @@ private fun MerchantEditForm(
 
         Text(
             text = "Link a VPA (optional)",
-            style = PaisaTheme.typography.overline,
+            style = PaisaTheme.typography.label,
             color = PaisaTheme.colors.inkMuted,
             modifier = Modifier.padding(top = PaisaSpacing.normal, bottom = 4.dp),
         )
@@ -242,7 +242,7 @@ private fun MerchantEditForm(
             value = vpa,
             onValueChange = { vpa = it },
             textStyle = TextStyle(color = PaisaTheme.colors.ink, fontSize = PaisaTheme.typography.body.fontSize),
-            modifier = Modifier.fillMaxWidth().background(PaisaTheme.colors.surface, PaisaShape).padding(PaisaSpacing.tight),
+            modifier = Modifier.fillMaxWidth().background(PaisaTheme.colors.surface1, ChipShape).padding(PaisaSpacing.tight),
             decorationBox = { inner ->
                 if (vpa.isEmpty()) {
                     Text("merchant@bank", style = PaisaTheme.typography.body, color = PaisaTheme.colors.inkMuted)
@@ -253,7 +253,7 @@ private fun MerchantEditForm(
 
         Text(
             text = if (isOnline) "Online merchant — tap to mark in-person" else "In-person merchant — tap to mark online",
-            style = PaisaTheme.typography.bodySecondary,
+            style = PaisaTheme.typography.caption,
             color = PaisaTheme.colors.accent,
             modifier = Modifier.clickable { isOnline = !isOnline }.padding(top = PaisaSpacing.tight),
         )
@@ -261,7 +261,7 @@ private fun MerchantEditForm(
         errorText?.let {
             Text(
                 text = it,
-                style = PaisaTheme.typography.bodySecondary,
+                style = PaisaTheme.typography.caption,
                 color = PaisaTheme.colors.negative,
                 modifier = Modifier.padding(top = PaisaSpacing.tight),
             )

@@ -2,6 +2,7 @@ package com.paisetrail.app.capture.notification
 
 import com.paisetrail.app.data.db.TxnDirection
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PaytmNotificationParserTest {
@@ -33,5 +34,17 @@ class PaytmNotificationParserTest {
         assertEquals(45000L, result.amountPaise)
         assertEquals("Sharma Tea Stall", result.payeeName)
         assertEquals(TxnDirection.CREDIT, result.direction)
+    }
+
+    @Test
+    fun `ignores a Postpaid credit-limit promo, real bug repro`() {
+        // Real captured notification that was wrongly turned into a transaction.
+        val result = parser.parse(
+            title = "Paytm",
+            text = "Up to ₹60,000 Credit limit",
+            bigText = "No Joining Fee\n\nNo Joining Fee\n\nNo Paperwork\n\nTap to activate Paytm Postpaid today",
+            subText = null,
+        )
+        assertNull(result)
     }
 }

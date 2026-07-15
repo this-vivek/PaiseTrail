@@ -27,6 +27,7 @@ private class FakeCategoryDao(private val categories: List<CategoryEntity>) : Ca
     override suspend fun getByName(name: String): CategoryEntity? = categories.firstOrNull { it.name == name }
     override suspend fun getById(id: Long): CategoryEntity? = categories.firstOrNull { it.id == id }
     override suspend fun backfillEmojiIfMissing(name: String, emoji: String) = Unit
+    override suspend fun backfillColorIfDefault(name: String, colorHex: String) = Unit
 }
 
 private class FakeMerchantDao(private val merchants: List<MerchantEntity>) : MerchantDao {

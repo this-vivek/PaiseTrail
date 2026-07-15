@@ -21,4 +21,11 @@ class TagConfirmationUseCase @Inject constructor(
         transactionDao.update(txn.copy(categoryId = category.id, tagSource = TagSource.USER))
         txn.merchantId?.let { merchantResolver.learnCategory(it, category.id) }
     }
+
+    /** The tag popup's delete action (spec 8 #10-adjacent) — a false-positive capture (a
+     * promotional message that slipped past the parser, a duplicate) is most obvious right when
+     * the popup appears, so removing it shouldn't require a trip into the transaction list. */
+    suspend fun deleteTransaction(txnId: Long) {
+        transactionDao.deleteById(txnId)
+    }
 }

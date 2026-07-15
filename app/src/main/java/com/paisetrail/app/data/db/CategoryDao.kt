@@ -40,4 +40,12 @@ interface CategoryDao {
      * must not have it silently overwritten by the next app launch's re-seed. */
     @Query("UPDATE categories SET emoji = :emoji WHERE name = :name AND emoji IS NULL")
     suspend fun backfillEmojiIfMissing(name: String, emoji: String)
+
+    /** One-time correction for installs seeded before Health/P2P Transfer got their own distinct
+     * colors (see [CategorySeed]) — sharing the same grey as Uncategorized was a real ambiguity
+     * once the pie chart went from a thin ring to bold filled wedges. Only touches a category
+     * still on that old shared grey, so a user's own recolor via the management screen is
+     * untouched — same "don't overwrite a customization" guard as [backfillEmojiIfMissing]. */
+    @Query("UPDATE categories SET colorHex = :colorHex WHERE name = :name AND colorHex = '#9AA0B0'")
+    suspend fun backfillColorIfDefault(name: String, colorHex: String)
 }

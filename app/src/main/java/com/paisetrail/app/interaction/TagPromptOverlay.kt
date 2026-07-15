@@ -15,7 +15,6 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.paisetrail.app.data.db.TransactionEntity
-import com.paisetrail.app.enrich.CategoryGuesser
 import com.paisetrail.app.enrich.TagConfirmationUseCase
 import com.paisetrail.app.util.formatRupees
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -44,12 +43,12 @@ class TagPromptOverlay @Inject constructor(
 
     fun canShow(): Boolean = Settings.canDrawOverlays(context)
 
-    fun show(txn: TransactionEntity, tripName: String? = null) {
+    fun show(txn: TransactionEntity, tripName: String? = null, predictions: List<String>) {
         if (!canShow()) return
-        mainHandler.post { showOnMainThread(txn, tripName) }
+        mainHandler.post { showOnMainThread(txn, tripName, predictions) }
     }
 
-    private fun showOnMainThread(txn: TransactionEntity, tripName: String?) {
+    private fun showOnMainThread(txn: TransactionEntity, tripName: String?, predictions: List<String>) {
         dismiss()
 
         val windowManager = context.getSystemService(WindowManager::class.java) ?: return
@@ -87,7 +86,7 @@ class TagPromptOverlay @Inject constructor(
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 32, 0, 0)
         }
-        CategoryGuesser.topPredictions(txn.payeeNameRaw, txn.vpa).forEach { categoryName ->
+        predictions.forEach { categoryName ->
             buttonRow.addView(
                 Button(context).apply {
                     text = categoryName
@@ -96,6 +95,18 @@ class TagPromptOverlay @Inject constructor(
             )
         }
         card.addView(buttonRow)
+
+        // A false-positive capture (a promo that slipped through, a duplicate) is most obvious
+        // right when this popup appears — deleting it shouldn't require a trip into the app.
+        card.addView(
+            TextView(context).apply {
+                text = "Delete"
+                setTextColor(NEGATIVE_COLOR)
+                textSize = 14f
+                setPadding(0, 24, 0, 0)
+                setOnClickListener { deleteTxn(txn.id) }
+            },
+        )
 
         // Full-screen transparent root so tapping outside the card dismisses it, same as a modal
         // dialog — the card itself absorbs its own clicks so they don't bubble through to that.
@@ -139,6 +150,11 @@ class TagPromptOverlay @Inject constructor(
         mainHandler.post { dismiss() }
     }
 
+    private fun deleteTxn(txnId: Long) {
+        ioScope.launch { tagConfirmationUseCase.deleteTransaction(txnId) }
+        mainHandler.post { dismiss() }
+    }
+
     private fun dismiss() {
         dismissRunnable?.let(mainHandler::removeCallbacks)
         dismissRunnable = null
@@ -158,6 +174,7 @@ class TagPromptOverlay @Inject constructor(
         private const val SURFACE_COLOR = 0xFF16181B.toInt()
         private const val INK_COLOR = 0xFFE8E8E4.toInt()
         private const val INK_MUTED_COLOR = 0xFF8A8D93.toInt()
+        private const val NEGATIVE_COLOR = 0xFFE0707A.toInt()
         private const val SCRIM_COLOR = 0x99000000.toInt()
     }
 }

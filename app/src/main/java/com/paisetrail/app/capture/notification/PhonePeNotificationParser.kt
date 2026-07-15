@@ -14,6 +14,7 @@ class PhonePeNotificationParser : NotificationParser {
     override fun parse(title: String?, text: String?, bigText: String?, subText: String?): ParsedTxn? {
         val body = bigText ?: text ?: ""
         val combined = listOfNotNull(title, body, subText).joinToString(" ")
+        if (TxnTextRules.isPromotional(combined)) return null
         val amountPaise = TxnTextRules.extractAmountPaise(combined) ?: return null
 
         if (TxnTextRules.isDebitSignal(combined)) {

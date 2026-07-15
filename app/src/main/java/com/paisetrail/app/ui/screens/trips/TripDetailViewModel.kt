@@ -8,6 +8,7 @@ import com.paisetrail.app.data.db.DailySpendRow
 import com.paisetrail.app.data.db.TransactionDao
 import com.paisetrail.app.data.db.TripDao
 import com.paisetrail.app.data.db.TripEntity
+import com.paisetrail.app.enrich.CategoryGuesser
 import com.paisetrail.app.ui.navigation.Destination
 import com.paisetrail.app.ui.screens.map.TxnClusterItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -45,12 +46,16 @@ class TripDetailViewModel @Inject constructor(
         categoryDao.observeAll(),
     ) { spends, categories ->
         val categoriesById = categories.associateBy { it.id }
+        // Resolve a null categoryId through the real "Uncategorized" row too (see the identical
+        // fix in DashboardViewModel.categorySlices) — otherwise it and an explicitly-tagged
+        // Uncategorized transaction merge into one slice whose color/emoji depends on group order.
+        val uncategorized = categories.firstOrNull { it.name == CategoryGuesser.UNCATEGORIZED }
         spends
             .filter { it.amountPaise > 0 }
             .map { spend ->
-                val category = spend.categoryId?.let { categoriesById[it] }
+                val category = spend.categoryId?.let { categoriesById[it] } ?: uncategorized
                 TripCategorySlice(
-                    name = category?.name ?: "Uncategorized",
+                    name = category?.name ?: CategoryGuesser.UNCATEGORIZED,
                     colorHex = category?.colorHex,
                     emoji = category?.emoji,
                     amountPaise = spend.amountPaise,

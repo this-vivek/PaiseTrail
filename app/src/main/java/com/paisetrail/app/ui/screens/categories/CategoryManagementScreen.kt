@@ -44,19 +44,20 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.paisetrail.app.data.db.CategoryEntity
 import com.paisetrail.app.ui.components.CategoryDot
 import com.paisetrail.app.ui.theme.CategoryPalette
-import com.paisetrail.app.ui.theme.PaisaShape
+import com.paisetrail.app.ui.theme.ChipShape
 import com.paisetrail.app.ui.theme.PaisaSpacing
 import com.paisetrail.app.ui.theme.PaisaTheme
 
 private val PALETTE = listOf(
-    "#8A8B5C" to CategoryPalette.olive,
-    "#B4715B" to CategoryPalette.clay,
-    "#5C7291" to CategoryPalette.slateBlue,
-    "#BBA36A" to CategoryPalette.sand,
-    "#7C9473" to CategoryPalette.sage,
-    "#8B6A8E" to CategoryPalette.plum,
-    "#5C8F8A" to CategoryPalette.teal,
-    "#8A8D93" to CategoryPalette.grey,
+    "#E0A458" to CategoryPalette.amber,
+    "#E07A5F" to CategoryPalette.coral,
+    "#5B8DEF" to CategoryPalette.azure,
+    "#CDB04E" to CategoryPalette.gold,
+    "#57B894" to CategoryPalette.emerald,
+    "#A78BDB" to CategoryPalette.lilac,
+    "#4FBBD1" to CategoryPalette.cyan,
+    "#D46A9B" to CategoryPalette.rose,
+    "#9AA0B0" to CategoryPalette.grey,
 )
 
 /** Rename, recolor, re-icon, add, or delete a category (spec 7.7 "category icon") — reachable
@@ -129,7 +130,7 @@ private fun CategoryRow(category: CategoryEntity, viewModel: CategoryManagementV
             text = {
                 Text(
                     "Transactions tagged with this category go back to Uncategorized. This cannot be undone.",
-                    style = PaisaTheme.typography.bodySecondary,
+                    style = PaisaTheme.typography.caption,
                 )
             },
             confirmButton = {
@@ -191,7 +192,7 @@ private fun CategoryEditForm(
                 textStyle = TextStyle(color = PaisaTheme.colors.ink, fontSize = PaisaTheme.typography.body.fontSize),
                 modifier = Modifier
                     .width(44.dp)
-                    .background(PaisaTheme.colors.surface, PaisaShape)
+                    .background(PaisaTheme.colors.surface1, ChipShape)
                     .padding(PaisaSpacing.tight),
             )
             Spacer(Modifier.width(PaisaSpacing.tight))
@@ -201,7 +202,7 @@ private fun CategoryEditForm(
                 textStyle = TextStyle(color = PaisaTheme.colors.ink, fontSize = PaisaTheme.typography.body.fontSize),
                 modifier = Modifier
                     .weight(1f)
-                    .background(PaisaTheme.colors.surface, PaisaShape)
+                    .background(PaisaTheme.colors.surface1, ChipShape)
                     .padding(PaisaSpacing.tight),
                 decorationBox = { inner ->
                     if (name.isEmpty()) {

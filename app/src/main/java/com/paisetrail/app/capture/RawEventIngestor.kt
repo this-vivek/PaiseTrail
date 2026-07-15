@@ -98,9 +98,15 @@ class RawEventIngestor @Inject constructor(
 
         val candidates = transactionDao.getInWindow(postedAt - FUZZY_WINDOW_MS, postedAt + FUZZY_WINDOW_MS)
         val fuzzyMatch = candidates.firstOrNull { candidate ->
-            candidate.amountPaise == parsed.amountPaise &&
-                payeeTokensOverlap(candidate.payeeNameRaw, parsed.payeeName) &&
-                !refsConflict(candidate.upiRef, parsed.refId)
+            amountsMatch(candidate.amountPaise, parsed.amountPaise) &&
+                !refsConflict(candidate.upiRef, parsed.refId) &&
+                // A UPI app's own notification (CRED, GPay, PhonePe...) almost always shows its own
+                // brand/biller name rather than the bank statement's registered settlement entity
+                // ("Uffco" vs "UFF COSMETICS LLP") — no token overlap is possible there even though
+                // it's the same payment. Within a tight few-second window, near-simultaneous arrival
+                // is itself strong enough evidence to merge without requiring name overlap too.
+                (payeeTokensOverlap(candidate.payeeNameRaw, parsed.payeeName) ||
+                    withinTightWindow(candidate.occurredAt, postedAt))
         }
         if (fuzzyMatch != null) {
             val merged = mergeFields(fuzzyMatch, parsed, source, postedAt)
@@ -177,6 +183,20 @@ class RawEventIngestor @Inject constructor(
     private fun refsConflict(existingRef: String?, incomingRef: String?): Boolean =
         existingRef != null && incomingRef != null && existingRef != incomingRef
 
+    /** A UPI app's own success notification often displays the amount rounded to the nearest
+     * rupee ("₹1,898") while the bank SMS for the same debit carries the exact paise
+     * ("Rs.1898.10") — treated as the same amount when they're within a rupee of each other and
+     * at least one side is a whole-rupee figure (i.e. plausibly a rounded display value, not a
+     * genuinely different amount). */
+    private fun amountsMatch(a: Long, b: Long): Boolean {
+        if (a == b) return true
+        val diffPaise = kotlin.math.abs(a - b)
+        return diffPaise < 100 && (a % 100 == 0L || b % 100 == 0L)
+    }
+
+    private fun withinTightWindow(existingAt: Long, incomingAt: Long): Boolean =
+        kotlin.math.abs(existingAt - incomingAt) <= TIGHT_WINDOW_MS
+
     private fun payeeTokensOverlap(a: String?, b: String?): Boolean {
         if (a.isNullOrBlank() || b.isNullOrBlank()) return true
         return tokenize(a).intersect(tokenize(b)).isNotEmpty()
@@ -188,5 +208,6 @@ class RawEventIngestor @Inject constructor(
     companion object {
         private const val TAG = "RawEventIngestor"
         private const val FUZZY_WINDOW_MS = 180_000L
+        private const val TIGHT_WINDOW_MS = 10_000L
     }
 }

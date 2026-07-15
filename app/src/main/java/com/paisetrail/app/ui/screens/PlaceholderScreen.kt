@@ -24,7 +24,7 @@ fun PlaceholderScreen(title: String) {
     ) {
         Text(
             text = "$title — coming in a later phase",
-            style = PaisaTheme.typography.bodySecondary,
+            style = PaisaTheme.typography.caption,
             color = PaisaTheme.colors.inkMuted,
         )
     }

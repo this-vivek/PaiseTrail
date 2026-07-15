@@ -12,9 +12,10 @@ val LocalPaisaColors = staticCompositionLocalOf { DarkPaisaColors }
 val LocalPaisaTypography = staticCompositionLocalOf { DefaultPaisaTypography }
 
 /**
- * The ledger, not a fintech product: no gradients, no cards-on-cards, no elevation stacks. Debit
- * amounts render in `ink`, never `negative` — spending isn't an error state. Dark-first; light is
- * derived from the same token set (see Color.kt).
+ * "Premium Fintech" v2 (see `paisetrail-ui-redesign-spec.md`): deep layered dark surfaces, one
+ * signature living gradient (the Aurora, on the Dashboard hero only), frosted-glass chrome, jewel
+ * category color, confident spring motion. Debit amounts still render in `ink`, never `negative`
+ * — spending isn't an error state. Dark-first; light is derived from the same token set.
  */
 @Composable
 fun PaisaTrailTheme(
@@ -30,9 +31,9 @@ fun PaisaTrailTheme(
             onPrimary = paisaColors.bg,
             background = paisaColors.bg,
             onBackground = paisaColors.ink,
-            surface = paisaColors.surface,
+            surface = paisaColors.surface1,
             onSurface = paisaColors.ink,
-            surfaceVariant = paisaColors.surface,
+            surfaceVariant = paisaColors.surface1,
             onSurfaceVariant = paisaColors.inkMuted,
             outline = paisaColors.hairline,
             error = paisaColors.negative,
@@ -41,16 +42,16 @@ fun PaisaTrailTheme(
     } else {
         lightColorScheme(
             primary = paisaColors.accent,
-            onPrimary = paisaColors.surface,
+            onPrimary = paisaColors.surface1,
             background = paisaColors.bg,
             onBackground = paisaColors.ink,
-            surface = paisaColors.surface,
+            surface = paisaColors.surface1,
             onSurface = paisaColors.ink,
-            surfaceVariant = paisaColors.surface,
+            surfaceVariant = paisaColors.surface1,
             onSurfaceVariant = paisaColors.inkMuted,
             outline = paisaColors.hairline,
             error = paisaColors.negative,
-            onError = paisaColors.surface,
+            onError = paisaColors.surface1,
         )
     }
 
@@ -60,7 +61,7 @@ fun PaisaTrailTheme(
     ) {
         MaterialTheme(
             colorScheme = materialColorScheme,
-            shapes = MaterialTheme.shapes.copy(medium = PaisaShape),
+            shapes = MaterialTheme.shapes.copy(medium = CardShape),
             content = content,
         )
     }

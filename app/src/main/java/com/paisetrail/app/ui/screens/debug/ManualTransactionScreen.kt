@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paisetrail.app.ui.components.CategoryDot
 import com.paisetrail.app.ui.components.CategoryPickerSheet
-import com.paisetrail.app.ui.theme.PaisaShape
+import com.paisetrail.app.ui.theme.ChipShape
 import com.paisetrail.app.ui.theme.PaisaSpacing
 import com.paisetrail.app.ui.theme.PaisaTheme
 import java.time.Instant
@@ -74,7 +74,7 @@ fun ManualTransactionScreen(onDone: () -> Unit, viewModel: ManualTransactionView
         )
         Text(
             text = "Custom transaction",
-            style = PaisaTheme.typography.amountListHeader,
+            style = PaisaTheme.typography.amountL,
             color = PaisaTheme.colors.ink,
             modifier = Modifier.padding(top = PaisaSpacing.normal, bottom = PaisaSpacing.loose),
         )
@@ -86,7 +86,7 @@ fun ManualTransactionScreen(onDone: () -> Unit, viewModel: ManualTransactionView
             textStyle = TextStyle(color = PaisaTheme.colors.ink, fontSize = PaisaTheme.typography.body.fontSize),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(PaisaTheme.colors.surface, PaisaShape)
+                .background(PaisaTheme.colors.surface1, ChipShape)
                 .padding(PaisaSpacing.tight),
             decorationBox = { inner ->
                 if (payeeName.isEmpty()) {
@@ -104,7 +104,7 @@ fun ManualTransactionScreen(onDone: () -> Unit, viewModel: ManualTransactionView
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(PaisaTheme.colors.surface, PaisaShape)
+                .background(PaisaTheme.colors.surface1, ChipShape)
                 .padding(PaisaSpacing.tight),
             decorationBox = { inner ->
                 if (amountText.isEmpty()) {
@@ -119,7 +119,7 @@ fun ManualTransactionScreen(onDone: () -> Unit, viewModel: ManualTransactionView
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { showCategoryPicker = true }
-                .background(PaisaTheme.colors.surface, PaisaShape)
+                .background(PaisaTheme.colors.surface1, ChipShape)
                 .padding(PaisaSpacing.tight),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -140,7 +140,7 @@ fun ManualTransactionScreen(onDone: () -> Unit, viewModel: ManualTransactionView
                 color = PaisaTheme.colors.ink,
                 modifier = Modifier
                     .clickable { showDatePicker = true }
-                    .background(PaisaTheme.colors.surface, PaisaShape)
+                    .background(PaisaTheme.colors.surface1, ChipShape)
                     .padding(PaisaSpacing.tight),
             )
             Text(
@@ -150,7 +150,7 @@ fun ManualTransactionScreen(onDone: () -> Unit, viewModel: ManualTransactionView
                 modifier = Modifier
                     .clickable { showTimePicker = true }
                     .padding(start = PaisaSpacing.tight)
-                    .background(PaisaTheme.colors.surface, PaisaShape)
+                    .background(PaisaTheme.colors.surface1, ChipShape)
                     .padding(PaisaSpacing.tight),
             )
         }
@@ -158,7 +158,7 @@ fun ManualTransactionScreen(onDone: () -> Unit, viewModel: ManualTransactionView
         errorText?.let {
             Text(
                 text = it,
-                style = PaisaTheme.typography.bodySecondary,
+                style = PaisaTheme.typography.caption,
                 color = PaisaTheme.colors.negative,
                 modifier = Modifier.padding(top = PaisaSpacing.tight),
             )
@@ -231,7 +231,7 @@ fun ManualTransactionScreen(onDone: () -> Unit, viewModel: ManualTransactionView
 private fun FieldLabel(text: String) {
     Text(
         text = text,
-        style = PaisaTheme.typography.overline,
+        style = PaisaTheme.typography.label,
         color = PaisaTheme.colors.inkMuted,
         modifier = Modifier.padding(top = PaisaSpacing.normal, bottom = 4.dp),
     )

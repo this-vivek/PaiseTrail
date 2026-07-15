@@ -45,4 +45,10 @@ class FakeCategoryDao : CategoryDao {
             if (it.name == name && it.emoji == null) it.copy(emoji = emoji) else it
         }
     }
+
+    override suspend fun backfillColorIfDefault(name: String, colorHex: String) {
+        categories.value = categories.value.map {
+            if (it.name == name && it.colorHex == "#9AA0B0") it.copy(colorHex = colorHex) else it
+        }
+    }
 }

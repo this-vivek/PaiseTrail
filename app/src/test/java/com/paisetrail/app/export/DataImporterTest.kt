@@ -55,6 +55,11 @@ private class ImportFakeCategoryDao : CategoryDao {
         val index = categories.indexOfFirst { it.name == name && it.emoji == null }
         if (index >= 0) categories[index] = categories[index].copy(emoji = emoji)
     }
+
+    override suspend fun backfillColorIfDefault(name: String, colorHex: String) {
+        val index = categories.indexOfFirst { it.name == name && it.colorHex == "#9AA0B0" }
+        if (index >= 0) categories[index] = categories[index].copy(colorHex = colorHex)
+    }
 }
 
 private class ImportFakeMerchantDao : MerchantDao {
